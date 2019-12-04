@@ -4817,7 +4817,9 @@ static void term_out(Terminal *term)
                         term->termstate = OSC_STRING;
 
                         /* far2l */
-                        term->osc_string[term->osc_strlen++] = (char)c;
+                        if (term->is_apc) {
+                            term->osc_string[term->osc_strlen++] = (char)c;
+                        }
                     }
                 }
                 break;
