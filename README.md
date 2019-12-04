@@ -23,8 +23,8 @@ Or for x86_64:
 
 ---
 
-`__attribute__((packed))` is used in the code, which is GCC-only. For MSVC alternatives see:
-https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
+`__attribute__((packed))` is used in the code, which is GCC-only. For MSVC alternatives look [here](https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
+).
 
 ---
 
