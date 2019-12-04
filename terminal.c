@@ -13,6 +13,10 @@
 #include "putty.h"
 #include "terminal.h"
 
+/* far2l base64 */
+#include <windows/cencode.h>
+#include <windows/cdecode.h>
+
 #define VT52_PLUS
 
 #define CL_ANSIMIN      0x0001         /* Codes in all ANSI like terminals. */
@@ -2783,6 +2787,76 @@ static void do_osc(Terminal *term)
 
             } else if (strncmp(term->osc_string+5, ":", 1) == 0) {
 
+                // dummy answer: -1
+
+                // todo: read incoming string, decode, get request ID,
+                // append it to reply stack
+
+                /*
+            	base64_decodestate _d_state;
+        		base64_init_decodestate(&_d_state);
+                char* d_out = malloc(term->osc_strlen); // todo: FREE! 
+                int d_count = base64_decode_block(term->osc_string+6, term->osc_strlen-6, d_out, &_d_state);
+
+                FILE *f; f = fopen("putty.log", "a");
+                fprintf(f, "d_out__: [");
+                for(int i=0;i<d_count;i++) {
+                    fprintf(f, "%c",d_out[i]);
+                }
+                fprintf(f, "]\n");
+                fclose(f);
+                */
+
+                // base64-encode
+                // result in null-terminated char* out
+            	base64_encodestate _state;
+                base64_init_encodestate(&_state);
+
+                struct re_type {
+                    char answer;
+                    char id;
+                } __attribute__((packed)) re; // add packed attr to avoid unneeded padding
+                re.answer = -1;
+                re.id = 1;
+
+                char* out = malloc(8);
+                int count = base64_encode_block((char*)&re, 2, out, &_state);
+                // finishing '=' characters
+                char* next_char = out + count;
+                switch (_state.step)
+            	{
+            	case step_B:
+            		*next_char++ = base64_encode_value(_state.result);
+            		*next_char++ = '=';
+            		*next_char++ = '=';
+            		break;
+            	case step_C:
+            		*next_char++ = base64_encode_value(_state.result);
+            		*next_char++ = '=';
+            		break;
+            	}
+                count = next_char - out;
+                out[count] = 0;
+
+                // send escape seq
+
+                char* str = "\x1b_far2l";
+                backend_send(term->backend, str, strlen(str));
+
+                backend_send(term->backend, out, count);
+
+                char* str2 = "\x07";
+                backend_send(term->backend, str2, strlen(str2));
+
+                /*
+                f = fopen("putty.log", "a");
+                fprintf(f, "out: %s, count: %d\n", out, count);
+                fclose(f);
+                */
+
+                // don't forget to free memory :)
+                free(out);
+                
                 /*
                 FILE *f; f = fopen("putty.log", "a");
                 fprintf(f, "String: %s\n", term->osc_string);
