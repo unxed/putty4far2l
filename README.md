@@ -1,6 +1,8 @@
 
-Putty 0.73 with [far2l](https://github.com/elfmz/far2l) terminal
+[Putty](https://www.putty.org/) 0.73 downstream fork with [far2l](https://github.com/elfmz/far2l) terminal
 extensions (only full keyboard support for now; others are WIP).
+
+[x86 binary](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
 
 ---
 
