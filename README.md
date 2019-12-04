@@ -1,5 +1,5 @@
 
-Putty 0.73 with [far2l](https://github.com/elfmz/far2l) terminal
+[Putty](https://www.putty.org/) 0.73 downstream fork with [far2l](https://github.com/elfmz/far2l) terminal
 extensions (only full keyboard support for now; others are WIP).
 
 ---
