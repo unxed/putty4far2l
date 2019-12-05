@@ -33,6 +33,7 @@ If you plan to build PuTTY on Linux and test in wine (as do I), you may need to 
 ---
 
 TODO list:
+- Process NumLock state correctly
 - Clipboard sync implementation
 - Fix strange bug with Ctrl+Shift+Right, Ctrl+C, Ctrl+Right, Ctrl+V pressed sequentially in editor
 - Display line drawing characters with antialiasing disabled (or just use [Consolas](https://en.wikipedia.org/wiki/Consolas) font on Windows :)
