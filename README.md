@@ -23,6 +23,10 @@ Or for x86_64:
 
 ---
 
+If you plan to build PuTTY on Linux and test in wine (as do I), you may need to [uncheck](https://bugs.winehq.org/show_bug.cgi?id=48196) all checkboxes in Connection-SSH-Auth-GSSAPI to avoid pagefaults.
+
+---
+
 `__attribute__((packed))` is used in the code, which is GCC-only. For MSVC alternatives look [here](https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
 ).
 
