@@ -1,0 +1,104 @@
+diff --git a/terminal.c b/terminal.c
+index b9194ed..ac1e9e3 100644
+--- a/terminal.c
++++ b/terminal.c
+@@ -2828,10 +2828,44 @@ static void do_osc(Terminal *term)
+                             case 'r':;
+                                 // register format
+ 
++                                len = (DWORD)d_out[d_count-7];
++                                d_out[len] = 0; // zero-terminate format name
++
++                                // far2l sends format name as (utf8?) string, which actually containing ascii only
++                                // so we can just call ascii function
++                                uint32_t status = RegisterClipboardFormatA(d_out);
++
++                                reply_size = 5;
++                                reply = malloc(reply_size);
++
++                                memcpy(reply, &status, sizeof(uint32_t));
++
++                                break;
++
++                            case 'e':;
++
++                                OpenClipboard(hwnd);
++                                char ec_status = EmptyClipboard() ? 1 : 0;
++                                CloseClipboard();
++
+                                 reply_size = 2;
+                                 reply = malloc(reply_size);
+ 
+-                                reply[0] = 13; // todo: unsupported yet, dummy answer CF_UNICODETEXT
++                                memcpy(reply, &ec_status, sizeof(char));
++
++                                break;
++
++
++                            case 'a':;
++
++                                DWORD a_fmt = (DWORD)d_out[d_count-7];
++
++                                char out = IsClipboardFormatAvailable(a_fmt) ? 1 : 0;
++
++                                reply_size = 2;
++                                reply = malloc(reply_size);
++
++                                reply[0] = out;
+ 
+                                 break;
+ 
+@@ -2871,8 +2905,7 @@ static void do_osc(Terminal *term)
+ 
+                                 if (term->clip_allowed == 1) {
+ 
+-                                    // DWORD fmt = (DWORD)d_out[d_count-3-4];
+-                                    // but we can not process format yet; assume utf32
++                                    DWORD fmt = (DWORD)d_out[d_count-3-4];
+ 
+                                     // id, 'c', 's', 4-byte fmt, next goes 4-byte len
+                                     memcpy(&len, d_out + d_count - 3 - 4 - 4, sizeof(DWORD));
+@@ -2904,9 +2937,8 @@ static void do_osc(Terminal *term)
+                             				GlobalUnlock(hData);
+ 
+                                              OpenClipboard(hwnd);
+-                                             EmptyClipboard();
+ 
+-                                             if (SetClipboardData(CF_UNICODETEXT, (HANDLE)hData)) {
++                                             if (SetClipboardData(fmt, (HANDLE)hData)) {
+ 
+                                                 CloseClipboard();
+ 
+@@ -2944,12 +2976,14 @@ static void do_osc(Terminal *term)
+ 
+                                 if (term->clip_allowed == 1) {
+ 
++                                    UINT gfmt = (DWORD)d_out[d_count-3-4];
++
+                                     // clipboard stuff itself
+ 
+                                     wchar_t *ClipText=NULL;
+ 
+                                     OpenClipboard(hwnd);
+-                                	HANDLE hClipData=GetClipboardData(CF_UNICODETEXT);
++                                	HANDLE hClipData=GetClipboardData(gfmt);
+                                     CloseClipboard();
+ 
+                                 	if (hClipData)
+@@ -3034,7 +3068,7 @@ static void do_osc(Terminal *term)
+                     fclose(f);
+                 }
+                 */
+-                
++
+                 free(d_out);
+ 
+                 if (reply_size > 0) {
+@@ -3080,7 +3114,6 @@ static void do_osc(Terminal *term)
+ 
+                     /*
+                     // log string we sent
+-
+                     FILE *f; f = fopen("putty.log", "a");
+                     fprintf(f, "send: [");
+                     for(int i=0;i<count;i++) {
