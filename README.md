@@ -1,6 +1,6 @@
 
 [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 downstream fork with [far2l](https://github.com/elfmz/far2l) terminal
-extensions (only full keyboard support for now; others are WIP).
+extensions (keyboard and clipboard support for now).
 
 Ready to use [x86 binary](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe) is available for download.
 
@@ -32,10 +32,15 @@ If you plan to build PuTTY on Linux and test in wine (as do I), you may need to 
 
 ---
 
-TODO list:
-- Process NumLock state correctly
-- Clipboard sync implementation
-- Fix strange bug with Ctrl+Shift+Right, Ctrl+C, Ctrl+Right, Ctrl+V pressed sequentially in editor
+Known bugs:
+- PuTTY crashes on paste if there are some 0x00 characters in clipboard
+
+Things that can be made better (I have no concrete plans on it all, though):
+- Better errors processing
+- Better clipboard support (option to allow sync permanently for specific clients)
+- Deal with clipboard formats (not sure if this part is actually needed)
+- Dynamic APC buffer allocation (current clipboard size download limit is ~680Kb)
+- Other requests implementation (mouse, etc)
 - Display line drawing characters with antialiasing disabled (or just use [Consolas](https://en.wikipedia.org/wiki/Consolas) font on Windows :)
 
 ---
