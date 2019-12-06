@@ -2993,6 +2993,8 @@ static void do_osc(Terminal *term)
                                     reply[len*4+2] = 0;
                                     reply[len*4+3] = 0;
 
+                                    free(ClipText);
+
                                     // set size
                                     memcpy(reply + (len+1)*4, &size, sizeof(uint32_t));
 
