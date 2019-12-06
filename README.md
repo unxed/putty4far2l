@@ -38,7 +38,7 @@ Known bugs:
 Things that can be made better (I have no concrete plans on it all, though):
 - Better errors processing
 - Better clipboard support (option to allow sync permanently for specific clients)
-- Deal with clipboard formats (not sure if this part is actually needed)
+- FAR_VerticalBlock_Unicode clipboard format interoperability with Windows Far (if possible)
 - Dynamic APC buffer allocation (current clipboard size download limit is ~680Kb)
 - Other requests implementation (mouse, etc)
 - Display line drawing characters with antialiasing disabled (or just use [Consolas](https://en.wikipedia.org/wiki/Consolas) font on Windows :)
