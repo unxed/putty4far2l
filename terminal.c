@@ -2835,6 +2835,14 @@ static void do_osc(Terminal *term)
                                 // so we can just call ascii function
                                 uint32_t status = RegisterClipboardFormatA(d_out);
 
+                                /*
+                                FILE *f; f = fopen("putty.log", "a");
+                                fprintf(f, "status: %d, format: [%s]\n", status, d_out);
+                                fclose(f);
+
+                                // status: 49220, format: [FAR_VerticalBlock_Unicode]
+                                */
+
                                 reply_size = 5;
                                 reply = malloc(reply_size);
 
@@ -3005,32 +3013,48 @@ static void do_osc(Terminal *term)
                                         // todo: process errors
                                     }
 
-                                    len = wcslen(ClipText);
+                                    uint32_t size; // clipboard size (in utf32) field
 
-                                    // utf32 string size in bytes
-                                    uint32_t size = (len+1)*4; // +1 = tailing zeros
+                                    if (!ClipText) {
 
-                                    // + length (4 bytes) + id (1 byte)
-                                    reply_size = size + 5;
+                                        // clipboard is empty
+                                        reply_size = 5; // 4 bytes for size and one for id
+                                        reply = malloc(reply_size);
 
-                                    reply = malloc(reply_size);
+                                        size = 0;
 
-                                    // 'convert' to utf32
-                                    for (int i=0;i<len*4;i+=4) {
-                                        memcpy(reply + i, ClipText + i/4, 2);
-                                        reply[i+2] = 0;
-                                        reply[i+3] = 0;
+                                        memcpy(reply, &size, sizeof(uint32_t));
+
+                                    } else {
+
+                                        len = wcslen(ClipText);
+
+                                        // utf32 string size in bytes
+                                        size = (len+1)*4; // +1 = tailing zeros
+
+                                        // + length (4 bytes) + id (1 byte)
+                                        reply_size = size + 5;
+
+                                        reply = malloc(reply_size);
+
+                                        // 'convert' to utf32
+                                        for (int i=0;i<len*4;i+=4) {
+                                            memcpy(reply + i, ClipText + i/4, 2);
+                                            reply[i+2] = 0;
+                                            reply[i+3] = 0;
+                                        }
+                                        // zero terminate
+                                        reply[len*4] = 0;
+                                        reply[len*4+1] = 0;
+                                        reply[len*4+2] = 0;
+                                        reply[len*4+3] = 0;
+
+                                        // set size
+                                        memcpy(reply + (len+1)*4, &size, sizeof(uint32_t));
+
                                     }
-                                    // zero terminate
-                                    reply[len*4] = 0;
-                                    reply[len*4+1] = 0;
-                                    reply[len*4+2] = 0;
-                                    reply[len*4+3] = 0;
 
                                     free(ClipText);
-
-                                    // set size
-                                    memcpy(reply + (len+1)*4, &size, sizeof(uint32_t));
 
                                 } else {
 

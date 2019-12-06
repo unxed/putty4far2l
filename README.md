@@ -32,9 +32,6 @@ If you plan to build PuTTY on Linux and test in wine (as do I), you may need to 
 
 ---
 
-Known bugs:
-- PuTTY crashes on paste if there are some 0x00 characters in clipboard
-
 Things that can be made better (I have no concrete plans on it all, though):
 - Better errors processing
 - Better clipboard support (option to allow sync permanently for specific clients)
