@@ -1,8 +1,8 @@
 
-[Putty](https://www.putty.org/) 0.73 downstream fork with [far2l](https://github.com/elfmz/far2l) terminal
+[PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 downstream fork with [far2l](https://github.com/elfmz/far2l) terminal
 extensions (only full keyboard support for now; others are WIP).
 
-[x86 binary](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
+Ready to use [x86 binary](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe) is available for download.
 
 ---
 
@@ -23,8 +23,20 @@ Or for x86_64:
 
 ---
 
+If you plan to build PuTTY on Linux and test in wine (as do I), you may need to [uncheck](https://bugs.winehq.org/show_bug.cgi?id=48196) all checkboxes in Connection-SSH-Auth-GSSAPI to avoid pagefaults.
+
+---
+
 `__attribute__((packed))` is used in the code, which is GCC-only. For MSVC alternatives look [here](https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
 ).
+
+---
+
+TODO list:
+- Process NumLock state correctly
+- Clipboard sync implementation
+- Fix strange bug with Ctrl+Shift+Right, Ctrl+C, Ctrl+Right, Ctrl+V pressed sequentially in editor
+- Display line drawing characters with antialiasing disabled (or just use [Consolas](https://en.wikipedia.org/wiki/Consolas) font on Windows :)
 
 ---
 
