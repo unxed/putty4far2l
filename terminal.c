@@ -1676,6 +1676,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     /* far2l */
     term->far2l_ext = 0;
     term->is_apc = 0;
+    term->clip_allowed = -1;
 
     term->win = win;
     term->ucsdata = ucsdata;
@@ -2753,20 +2754,19 @@ static void do_osc(Terminal *term)
     if (term->is_apc) {
 
         /*
-        FILE *f; f = fopen("putty.log", "a");
-        fprintf(f, "Str: %s\n", term->osc_string);
-        fprintf(f, "Len: %d\n", term->osc_strlen);
-        fclose(f);
-        */
 
-        /*
+        FIXME
+        От удаленного far2l может придти строка любой длины,
+        а длина term->osc_string - фиксированная (2048 байт).
+        Длинный буфер обмена не пролезет.
 
-        и нужно разобраться, достаточная ли длина term->osc_string (2048 байт)
-        для всего, что может придти от удаленного far2l (длинный буфер обмена, например)
-        возможно, нам нужна динамическая длина этой штуки
+        Надо бы сделать какую-нибудь динамическую структуру.
 
-        ну, кстати, да. там переменный размер. так что длинный буфер обмена обрезаться будет
-        void *realloc(void *ptr, size_t newsize) - позволяет динамически изменять объем выделенной памяти
+        Хотя бы так:
+        void *realloc(void *ptr, size_t newsize)
+
+        Пока увеличил до мегабайта и сделал предупреждение,
+        если не пролезаем :)
 
         */
 
@@ -2781,98 +2781,322 @@ static void do_osc(Terminal *term)
                            false);
                 sfree(reply_buf);
 
+                // reset clipboard state; todo: do it on session init!
+                term->clip_allowed = -1;
+
             } else if (strncmp(term->osc_string+5, "0", 1) == 0) {
 
                 term->far2l_ext = 0;
 
+                // reset clipboard state; todo: do it on session init!
+                term->clip_allowed = -1;
+
             } else if (strncmp(term->osc_string+5, ":", 1) == 0) {
 
-                // dummy answer: -1
-
-                // todo: read incoming string, decode, get request ID,
-                // append it to reply stack
-
-                /*
             	base64_decodestate _d_state;
         		base64_init_decodestate(&_d_state);
-                char* d_out = malloc(term->osc_strlen); // todo: FREE! 
+                char* d_out = malloc(term->osc_strlen);
                 int d_count = base64_decode_block(term->osc_string+6, term->osc_strlen-6, d_out, &_d_state);
 
-                FILE *f; f = fopen("putty.log", "a");
-                fprintf(f, "d_out__: [");
-                for(int i=0;i<d_count;i++) {
-                    fprintf(f, "%c",d_out[i]);
+                // last byte is id
+                BYTE id = d_out[d_count-1];
+                char* reply = 0;
+                int reply_size = 0;
+
+                if (term->osc_strlen == OSC_STR_MAX) {
+                    // it's possibly too large clipboard
+
+                    MessageBox(hwnd, "Too large clipboard :(", "Error", MB_OK);
+
+                    // correct request id is lost forever
+                    // so we can not prevent far2l from hanging
+                    // so sad
+
+                    // fixme: good idea is to free all allocated memory here, though
+                    exit(100);
                 }
-                fprintf(f, "]\n");
-                fclose(f);
-                */
 
-                // base64-encode
-                // result in null-terminated char* out
-            	base64_encodestate _state;
-                base64_init_encodestate(&_state);
+                DWORD len;
 
-                struct re_type {
-                    char answer;
-                    char id;
-                } __attribute__((packed)) re; // add packed attr to avoid unneeded padding
-                re.answer = -1;
-                re.id = 1;
+                // next from the end byte is command
+                switch (d_out[d_count-2]) {
+                    case 'c':
 
-                char* out = malloc(8);
-                int count = base64_encode_block((char*)&re, 2, out, &_state);
-                // finishing '=' characters
-                char* next_char = out + count;
-                switch (_state.step)
-            	{
-            	case step_B:
-            		*next_char++ = base64_encode_value(_state.result);
-            		*next_char++ = '=';
-            		*next_char++ = '=';
-            		break;
-            	case step_C:
-            		*next_char++ = base64_encode_value(_state.result);
-            		*next_char++ = '=';
-            		break;
-            	}
-                count = next_char - out;
-                out[count] = 0;
+                        // clipboard interaction
+                        // next from the end byte is subcommand
+                        switch (d_out[d_count-3]) {
+                            case 'r':;
+                                // register format
 
-                // send escape seq
+                                reply_size = 2;
+                                reply = malloc(reply_size);
 
-                char* str = "\x1b_far2l";
-                backend_send(term->backend, str, strlen(str));
+                                reply[0] = 13; // todo: unsupported yet, dummy answer CF_UNICODETEXT
 
-                backend_send(term->backend, out, count);
+                                break;
 
-                char* str2 = "\x07";
-                backend_send(term->backend, str2, strlen(str2));
+                            case 'o':;
+                                // open
+                                // next from the end 4 bytes is client_id length
+                                len = (DWORD)d_out[d_count-7]; // FIXME: may be more that 1 byte (really no, but...)
+                                d_out[len] = 0; // all remaining string is client id, make it zero terminated
 
-                /*
-                f = fopen("putty.log", "a");
-                fprintf(f, "out: %s, count: %d\n", out, count);
-                fclose(f);
-                */
+                                // todo: check/store client id, all that stuff
 
-                // don't forget to free memory :)
-                free(out);
+                                reply_size = 2;
+                                reply = malloc(reply_size);
+
+                                if (term->clip_allowed == -1) {
+                                    int status = MessageBox(hwnd,
+                                        "Allow clipboard sync?", "Clipboard sync", MB_OKCANCEL);
+                                    if (status == IDOK) { 
+                                        term->clip_allowed = 1;
+                                    } else {
+                                        // IDCANCEL
+                                        term->clip_allowed = 0;
+                                    }
+                                }
+
+                                // status is first response byte
+                                if (term->clip_allowed == 1) {
+                                    reply[0] = 1;
+                                } else {
+                                    reply[0] = -1;
+                                }
+
+                                break;
+
+                            case 's':;
+                                // set data
+
+                                if (term->clip_allowed == 1) {
+
+                                    // DWORD fmt = (DWORD)d_out[d_count-3-4];
+                                    // but we can not process format yet; assume utf32
+
+                                    // id, 'c', 's', 4-byte fmt, next goes 4-byte len
+                                    memcpy(&len, d_out + d_count - 3 - 4 - 4, sizeof(DWORD));
+
+                                    // zero-terminate
+                                    d_out[len] = 0;
+                                    d_out[len+1] = 0;
+                                    d_out[len+2] = 0;
+                                    d_out[len+3] = 0;
+
+                                    // very stupid utf32->utf16 'conversion'
+                                    char* buffer = malloc(len/2+2);
+                                    for (int i=0;i<len/2;i+=2) {
+                                        buffer[i] = d_out[i*2];
+                                        buffer[i+1] = d_out[i*2+1];
+                                    }
+
+                                    // clipboard stuff itself
+
+                                	HGLOBAL hData;
+                            		void *GData;
+                            		int BufferSize=len/2+2;
+
+                            		if ((hData=GlobalAlloc(GMEM_MOVEABLE,BufferSize)))
+                            		{
+                            			if ((GData=GlobalLock(hData)))
+                            			{
+                            				memcpy(GData,buffer,BufferSize);
+                            				GlobalUnlock(hData);
+
+                                             OpenClipboard(hwnd);
+                                             EmptyClipboard();
+
+                                             if (SetClipboardData(CF_UNICODETEXT, (HANDLE)hData)) {
+
+                                                CloseClipboard();
+
+                                             } else {
+
+                            					GlobalFree(hData);
+                                            }
+                            			}
+                            			else
+                            			{
+                            				GlobalFree(hData);
+                            			}
+                            		}
+
+                                    free(buffer);
+
+                                    // prepare reply
+                                    reply_size = 2;
+                                    reply = malloc(reply_size);
+
+                                    // first reply byte is status
+                                    reply[0] = 1; // ok; TODO: set to 0 if set clipboard failed
+
+                                } else {
+
+                                    reply_size = 2;
+                                    reply = malloc(reply_size);
+
+                                    reply[0] = 0;
+                                }
+
+                                break;
+
+                            case 'g':;
+
+                                if (term->clip_allowed == 1) {
+
+                                    // clipboard stuff itself
+
+                                    wchar_t *ClipText=NULL;
+
+                                    OpenClipboard(hwnd);
+                                	HANDLE hClipData=GetClipboardData(CF_UNICODETEXT);
+                                    CloseClipboard();
+
+                                	if (hClipData)
+                                	{
+                                		wchar_t *ClipAddr=(wchar_t *)GlobalLock(hClipData);
+
+                                		if (ClipAddr)
+                                		{
+                                			int BufferSize;
+                                            BufferSize=wcslen(ClipAddr)+1;
+                                            ClipText=(wchar_t *)malloc(BufferSize*sizeof(wchar_t));
+
+                                			if (ClipText)
+                                				wcscpy(ClipText, ClipAddr);
+
+                                			GlobalUnlock(hClipData);
+                                		}
+                                	} else {
+                                        // todo: process errors
+                                    }
+
+                                    len = wcslen(ClipText);
+
+                                    // utf32 string size in bytes
+                                    uint32_t size = (len+1)*4; // +1 = tailing zeros
+
+                                    // + length (4 bytes) + id (1 byte)
+                                    reply_size = size + 5;
+
+                                    reply = malloc(reply_size);
+
+                                    // 'convert' to utf32
+                                    for (int i=0;i<len*4;i+=4) {
+                                        memcpy(reply + i, ClipText + i/4, 2);
+                                        reply[i+2] = 0;
+                                        reply[i+3] = 0;
+                                    }
+                                    // zero terminate
+                                    reply[len*4] = 0;
+                                    reply[len*4+1] = 0;
+                                    reply[len*4+2] = 0;
+                                    reply[len*4+3] = 0;
+
+                                    // set size
+                                    memcpy(reply + (len+1)*4, &size, sizeof(uint32_t));
+
+                                } else {
+
+                                    // we should never reach here
+                                    // anyway, mimic empty clipboard
+
+                                    reply_size = 5;
+                                    reply = malloc(reply_size);
+
+                                    reply[0] = 0;
+                                    reply[1] = 0;
+                                    reply[2] = 0;
+                                    reply[3] = 0;
+                                }
+
+                                break;
+                        }
+
+                        break;
+                }
                 
                 /*
-                FILE *f; f = fopen("putty.log", "a");
-                fprintf(f, "String: %s\n", term->osc_string);
-                fclose(f);
-                */
-                // Ctrl+V
-                // String: far2l:c2h1dHRsZV8yZzBfcnUtdzY1dzA4dHV4M2ppd2RpaWhrOGE0cGs5c21mZmprankyMnRpb3RqaDVodGx3N3J4ZUAAAABvYwE=
-                // и зависает (в ожидании ответа, вероятно)
-                // NB! тут может переменной длины строка прилететь, а длина term->osc_string фиксирована
-            }
+                if (reply_size == 0) {
+                    // unsupported sequences
 
-            /*
-            FILE *f; f = fopen("putty.log", "a");
-            fprintf(f, "Farl_ext state: %d\n", term->far2l_ext);
-            fclose(f);
-            */
+                    term->osc_string[term->osc_strlen] = 0;
+
+                    FILE *f; f = fopen("putty.log", "a");
+                    fprintf(f, "string: %.*s, strlen: %d\n", term->osc_strlen, term->osc_string, term->osc_strlen);
+                    fprintf(f, "d_count: %d, d_out: [", d_count);
+                    for(int i=0;i<d_count;i++) {
+                        fprintf(f, "%c",d_out[i]);
+                    }
+                    fprintf(f, "]\n");
+                    fclose(f);
+                }
+                */
+                
+                free(d_out);
+
+                if (reply_size > 0) {
+                    // request is correct and we should send reply
+
+                    // last byte is always id
+                    reply[reply_size-1] = id;
+
+                    // ok, let us try to answer something
+
+                    // base64-encode
+                    // result in null-terminated char* out
+                	base64_encodestate _state;
+                    base64_init_encodestate(&_state);
+
+                    char* out = malloc(reply_size*2);
+                    int count = base64_encode_block((char*)reply, reply_size, out, &_state);
+                    // finishing '=' characters
+                    char* next_char = out + count;
+                    switch (_state.step)
+                	{
+                	case step_B:
+                		*next_char++ = base64_encode_value(_state.result);
+                		*next_char++ = '=';
+                		*next_char++ = '=';
+                		break;
+                	case step_C:
+                		*next_char++ = base64_encode_value(_state.result);
+                		*next_char++ = '=';
+                		break;
+                	case step_A:
+                        break;
+                	}
+                    count = next_char - out;
+                    out[count] = 0;
+
+                    // send escape seq
+
+                    char* str = "\x1b_far2l";
+                    backend_send(term->backend, str, strlen(str));
+
+                    backend_send(term->backend, out, count);
+
+                    /*
+                    // log string we sent
+
+                    FILE *f; f = fopen("putty.log", "a");
+                    fprintf(f, "send: [");
+                    for(int i=0;i<count;i++) {
+                        fprintf(f, "%c",out[i]);
+                    }
+                    fprintf(f, "]\n");
+                    fclose(f);
+                    */
+
+                    char* str2 = "\x07";
+                    backend_send(term->backend, str2, strlen(str2));
+
+                    // don't forget to free memory :)
+                    free(reply);
+                    free(out);
+                    
+                }
+            }
         }
 
         term->osc_strlen = 0;
@@ -7400,3 +7624,4 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
         return +1; /* all done */
     }
 }
+

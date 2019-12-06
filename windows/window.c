@@ -3224,7 +3224,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             BYTE kb[256];
             GetKeyboardState(kb);
             WCHAR uc[5] = {};
-            int result = ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
+
+            ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
+
+            // todo: check result
+            //int result = ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
 
             // far2l_ext keyboard input event structure
             struct f2l_keyevent {
@@ -3241,20 +3245,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             kev.vkc = LOWORD(wParam);
             kev.vsc = HIWORD(lParam) & 0xFF;
 
-            // wrong way of setting control keys state
-            //kev.ctrl = (lParam & ( 1 << 24 )) >> 24;
-
-            /*
-            // should be already defined somewhere inside win sdk
-            #define RIGHT_ALT_PRESSED     0x0001 // the right alt key is pressed.
-            #define LEFT_ALT_PRESSED      0x0002 // the left alt key is pressed.
-            #define RIGHT_CTRL_PRESSED    0x0004 // the right ctrl key is pressed.
-            #define LEFT_CTRL_PRESSED     0x0008 // the left ctrl key is pressed.
-            #define SHIFT_PRESSED         0x0010 // the shift key is pressed.
-            */
-
-            // correct way of setting control keys state
             kev.ctrl = 0;
+
             if (GetAsyncKeyState(VK_CONTROL)) {
                 kev.ctrl |= LEFT_CTRL_PRESSED;
             }
@@ -3265,8 +3257,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 kev.ctrl |= SHIFT_PRESSED;
             }
 
+            if ((lParam & ( 1 << 24 )) >> 24) {
+                kev.ctrl |= ENHANCED_KEY;
+            }
+
+            if ((((u_short)GetKeyState(VK_NUMLOCK)) & 0xffff) != 0) {	
+                kev.ctrl |= NUMLOCK_ON;
+            }
+		
+            if ((((u_short)GetKeyState(VK_SCROLL)) & 0xffff) != 0) {	
+    			kev.ctrl |= SCROLLLOCK_ON;
+            }
+		
+            if ((((u_short)GetKeyState(VK_CAPITAL)) & 0xffff) != 0) {	
+                kev.ctrl |= CAPSLOCK_ON;
+            }
+
             // set unicode character
             kev.uchar = uc[0];
+
+            // set event type
             if ((message == WM_KEYDOWN) || (message == WM_SYSKEYDOWN)) {
                 kev.type = 'K';
             } else {
@@ -3292,6 +3302,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         		*next_char++ = base64_encode_value(_state.result);
         		*next_char++ = '=';
         		break;
+            case step_A:
+                break;
         	}
             count = next_char - out;
             out[count] = 0;
