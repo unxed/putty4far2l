@@ -2848,7 +2848,7 @@ static void do_osc(Terminal *term)
 
                                 if (term->clip_allowed == -1) {
                                     int status = MessageBox(hwnd,
-                                        "Allow clipboard sync?", "Clipboard sync", MB_OKCANCEL);
+                                        "Allow far2l clipboard sync?", "PyTTY", MB_OKCANCEL);
                                     if (status == IDOK) { 
                                         term->clip_allowed = 1;
                                     } else {
