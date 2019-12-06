@@ -32,10 +32,12 @@ If you plan to build PuTTY on Linux and test in wine (as do I), you may need to 
 
 ---
 
-TODO list:
-- Process NumLock state correctly
-- Clipboard sync implementation
-- Fix strange bug with Ctrl+Shift+Right, Ctrl+C, Ctrl+Right, Ctrl+V pressed sequentially in editor
+Things that can be made better (I have no concrete plans on it all, though):
+- Better errors processing
+- Better clipboard support (option to allow sync permanently for specific clients)
+- Deal with clipboard formats (not sure if this part is actually needed)
+- Dynamic APC buffer allocation (current clipboard size download limit is ~680Kb)
+- Other requests implementation (mouse, etc)
 - Display line drawing characters with antialiasing disabled (or just use [Consolas](https://en.wikipedia.org/wiki/Consolas) font on Windows :)
 
 ---
