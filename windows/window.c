@@ -3231,64 +3231,70 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             //int result = ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
 
             // far2l_ext keyboard input event structure
-            struct f2l_keyevent {
-                DWORD repeat;
-                WORD vkc;
-                WORD vsc;
-                DWORD ctrl;
-                DWORD uchar;
-                CHAR type;
-            } __attribute__((packed)) kev; // add packed attr to avoid unneeded padding
+            DWORD repeat; // 4
+            WORD vkc;     // 2
+            WORD vsc;     // 2
+            DWORD ctrl;   // 4
+            DWORD uchar;  // 4
+            CHAR type;    // 1
 
             // set repeat, virtual keycode, virtual scancode
-            kev.repeat = lParam & 0xFFFF;
-            kev.vkc = LOWORD(wParam);
-            kev.vsc = HIWORD(lParam) & 0xFF;
+            repeat = lParam & 0xFFFF;
+            vkc = LOWORD(wParam);
+            vsc = HIWORD(lParam) & 0xFF;
 
-            kev.ctrl = 0;
+            ctrl = 0;
 
             if (GetAsyncKeyState(VK_CONTROL)) {
-                kev.ctrl |= LEFT_CTRL_PRESSED;
+                ctrl |= LEFT_CTRL_PRESSED;
             }
             if (GetAsyncKeyState(VK_MENU)) {
-                kev.ctrl |= LEFT_ALT_PRESSED;
+                ctrl |= LEFT_ALT_PRESSED;
             }
             if (GetAsyncKeyState(VK_SHIFT)) {
-                kev.ctrl |= SHIFT_PRESSED;
+                ctrl |= SHIFT_PRESSED;
             }
 
             if ((lParam & ( 1 << 24 )) >> 24) {
-                kev.ctrl |= ENHANCED_KEY;
+                ctrl |= ENHANCED_KEY;
             }
 
             if ((((u_short)GetKeyState(VK_NUMLOCK)) & 0xffff) != 0) {	
-                kev.ctrl |= NUMLOCK_ON;
+                ctrl |= NUMLOCK_ON;
             }
 		
             if ((((u_short)GetKeyState(VK_SCROLL)) & 0xffff) != 0) {	
-    			kev.ctrl |= SCROLLLOCK_ON;
+    			ctrl |= SCROLLLOCK_ON;
             }
 		
             if ((((u_short)GetKeyState(VK_CAPITAL)) & 0xffff) != 0) {	
-                kev.ctrl |= CAPSLOCK_ON;
+                ctrl |= CAPSLOCK_ON;
             }
 
             // set unicode character
-            kev.uchar = uc[0];
+            uchar = uc[0];
 
             // set event type
             if ((message == WM_KEYDOWN) || (message == WM_SYSKEYDOWN)) {
-                kev.type = 'K';
+                type = 'K';
             } else {
-                kev.type = 'k';
+                type = 'k';
             }
+
+            char* kev = malloc(17); // keyboard event structure length
+            memcpy(kev, &repeat, sizeof(repeat));
+            memcpy(kev + 4, &vkc, sizeof(vkc));
+            memcpy(kev + 6, &vsc, sizeof(vsc));
+            memcpy(kev + 8, &ctrl, sizeof(ctrl));
+            memcpy(kev + 12, &uchar, sizeof(uchar));
+            memcpy(kev + 16, &type, sizeof(type));
 
             // base64-encode kev
             // result in null-terminated char* out
         	base64_encodestate _state;
             base64_init_encodestate(&_state);
-            char* out = malloc(sizeof(kev)*2);
-            int count = base64_encode_block((char*)&kev, sizeof(kev), out, &_state);
+            char* out = malloc(17*2);
+            int count = base64_encode_block(kev, 17, out, &_state);
             // finishing '=' characters
             char* next_char = out + count;
             switch (_state.step)
