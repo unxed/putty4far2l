@@ -27,11 +27,6 @@ If you plan to build PuTTY on Linux and test in wine (as do I), you may need to 
 
 ---
 
-`__attribute__((packed))` is used in the code, which is GCC-only. For MSVC alternatives look [here](https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
-).
-
----
-
 Things that can be made better (I have no concrete plans on it all, though):
 - Better errors processing
 - Better clipboard support (option to allow sync permanently for specific clients)
