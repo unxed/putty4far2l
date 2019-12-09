@@ -3248,6 +3248,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             if (GetAsyncKeyState(VK_CONTROL)) {
                 ctrl |= LEFT_CTRL_PRESSED;
             }
+            if (GetAsyncKeyState(VK_RCONTROL)) {
+                ctrl |= RIGHT_CTRL_PRESSED;
+            }
             if (GetAsyncKeyState(VK_MENU)) {
                 ctrl |= LEFT_ALT_PRESSED;
             }
