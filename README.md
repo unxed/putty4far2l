@@ -37,7 +37,7 @@ cd putty4far2l/windows
 [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 downstream fork with [far2l](https://github.com/elfmz/far2l) terminal
 extensions (keyboard and clipboard support for now).
 
-Ready to use [x86 binary](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe) is available for download.
+[putty.exe for x86](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
 
 Cross-compilation on Ubuntu 18.04:
 ```
