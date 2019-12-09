@@ -1,7 +1,7 @@
 # putty4far2l
 **Readme in english is below**
 
-Форк [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 с поддержкой расширений терминала [far2l](https://github.com/elfmz/far2l) (на данный момент готова полная поддержка всех сочетаний клавиш и синхронизация буфера обмена).
+Форк [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 с поддержкой расширений терминала [far2l](https://github.com/elfmz/far2l) (на данный момент готова поддержка сочетаний клавиш, необходимых far2l, и синхронизация буфера обмена).
 
 [putty.exe для x86](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
 
@@ -35,7 +35,7 @@ cd putty4far2l/windows
 ---
 
 [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 downstream fork with [far2l](https://github.com/elfmz/far2l) terminal
-extensions (keyboard and clipboard support for now).
+extensions (support for required by far2l key combinations and clipboard sync support are ready for now).
 
 [putty.exe for x86](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
 
