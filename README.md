@@ -5,6 +5,8 @@
 
 [putty.exe для x86](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
 
+Все изменения сосредоточены в файлах window.c и terminal.c, ищите по строчке `far2l`.
+
 Кросс-компиляция на Ubuntu 18.04:
 ```
 sudo apt install mingw-w64
@@ -38,6 +40,8 @@ cd putty4far2l/windows
 extensions (support for required by far2l key combinations and clipboard sync support are ready for now).
 
 [putty.exe for x86](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
+
+All changes are in files window.c and terminal.c, you may search by `far2l` string to find them.
 
 Cross-compilation on Ubuntu 18.04:
 ```
