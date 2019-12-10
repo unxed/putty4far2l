@@ -2820,6 +2820,22 @@ static void do_osc(Terminal *term)
 
                 // next from the end byte is command
                 switch (d_out[d_count-2]) {
+
+                    case 'w':
+
+                        // get largest console window size
+                        
+                        reply_size = 5;
+                        reply = malloc(reply_size);
+
+                        // fixme: unimplemented
+                        // here should be short x and short y
+                        DWORD none = 0;
+
+                        memcpy(reply, &none, sizeof(DWORD));
+
+                        break;
+
                     case 'c':
 
                         // clipboard interaction
