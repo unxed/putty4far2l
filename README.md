@@ -32,7 +32,7 @@ cd putty4far2l/windows
 - Добавить поддержку других типов запросов (события мышки, уведомления etc)
 - Отображать псевдографику без сглаживания (или можно использовать шрифт [Consolas](https://en.wikipedia.org/wiki/Consolas) на Windows :)
 
-Вся остальная информация - в оригинальном PuTTY [README](https://github.com/unxed/putty4far2l/blob/master/README).
+Вся остальная информация - в оригинальном [PuTTY README](https://github.com/unxed/putty4far2l/blob/master/README).
 
 ---
 
@@ -68,5 +68,5 @@ Things that can be made better (I have no concrete plans on it all, though):
 - Other requests implementation (mouse, notifications, etc)
 - Display line drawing characters with antialiasing disabled (or just use [Consolas](https://en.wikipedia.org/wiki/Consolas) font on Windows :)
 
-For additional stuff see original PuTTY [README](https://github.com/unxed/putty4far2l/blob/master/README).
+For additional stuff see original [PuTTY README](https://github.com/unxed/putty4far2l/blob/master/README).
 
