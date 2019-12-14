@@ -1,2 +1,4 @@
 *.o
 windows/putty.map
+windows/make__quickrun.sh
+windows/putty.log

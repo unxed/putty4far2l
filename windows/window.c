@@ -3217,19 +3217,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         /* far2l */
         if (term->far2l_ext) {
 
-            // out base64 library splits long strings with \n
-            // do we actuall need this behavour?
-
-            // get unicode char
-            BYTE kb[256];
-            GetKeyboardState(kb);
-            WCHAR uc[5] = {};
-
-            ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
-
-            // todo: check result
-            //int result = ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
-
             // far2l_ext keyboard input event structure
             DWORD repeat; // 4
             WORD vkc;     // 2
@@ -3243,38 +3230,35 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             vkc = LOWORD(wParam);
             vsc = HIWORD(lParam) & 0xFF;
 
+            // set control keys state
             ctrl = 0;
-
-            if (GetAsyncKeyState(VK_CONTROL)) {
-                ctrl |= LEFT_CTRL_PRESSED;
-            }
-            if (GetAsyncKeyState(VK_RCONTROL)) {
-                ctrl |= RIGHT_CTRL_PRESSED;
-            }
-            if (GetAsyncKeyState(VK_MENU)) {
-                ctrl |= LEFT_ALT_PRESSED;
-            }
-            if (GetAsyncKeyState(VK_SHIFT)) {
-                ctrl |= SHIFT_PRESSED;
-            }
-
-            if ((lParam & ( 1 << 24 )) >> 24) {
-                ctrl |= ENHANCED_KEY;
-            }
-
-            if ((((u_short)GetKeyState(VK_NUMLOCK)) & 0xffff) != 0) {	
-                ctrl |= NUMLOCK_ON;
-            }
-		
-            if ((((u_short)GetKeyState(VK_SCROLL)) & 0xffff) != 0) {	
-    			ctrl |= SCROLLLOCK_ON;
-            }
-		
-            if ((((u_short)GetKeyState(VK_CAPITAL)) & 0xffff) != 0) {	
-                ctrl |= CAPSLOCK_ON;
-            }
+            if (GetAsyncKeyState(VK_LCONTROL)) { ctrl |= LEFT_CTRL_PRESSED; }
+            if (GetAsyncKeyState(VK_RCONTROL)) { ctrl |= RIGHT_CTRL_PRESSED; }
+            if (GetAsyncKeyState(VK_LMENU)) { ctrl |= LEFT_ALT_PRESSED; }
+            if (GetAsyncKeyState(VK_RMENU)) { ctrl |= RIGHT_ALT_PRESSED; }
+            if (GetAsyncKeyState(VK_SHIFT)) { ctrl |= SHIFT_PRESSED; }
+            // begin: reserved for future usage
+            // Console WinAPI does not allow us to distinguish between left and right
+            // shift keys. But PuTTY is not a console app, so why not to send
+            // all information about control keys state that we actually have here?
+            // Using bits not used by any other status for backward compatibility.
+            #define RIGHT_SHIFT_PRESSED 0x1000
+            #define LEFT_SHIFT_PRESSED 0x2000
+            if (GetAsyncKeyState(VK_LSHIFT)) { ctrl |= RIGHT_SHIFT_PRESSED; }
+            if (GetAsyncKeyState(VK_RSHIFT)) { ctrl |= LEFT_SHIFT_PRESSED; }
+            // end
+            if ((lParam & ( 1 << 24 )) >> 24) { ctrl |= ENHANCED_KEY; }
+            if ((((u_short)GetKeyState(VK_NUMLOCK)) & 0xffff) != 0) { ctrl |= NUMLOCK_ON; }
+            if ((((u_short)GetKeyState(VK_SCROLL)) & 0xffff) != 0) { ctrl |= SCROLLLOCK_ON; }
+            if ((((u_short)GetKeyState(VK_CAPITAL)) & 0xffff) != 0) { ctrl |= CAPSLOCK_ON; }
 
             // set unicode character
+            BYTE kb[256];
+            GetKeyboardState(kb);
+            WCHAR uc[5] = {};
+            ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
+            // todo: check result
+            //int result = ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
             uchar = uc[0];
 
             // set event type
@@ -3291,6 +3275,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             memcpy(kev + 8, &ctrl, sizeof(ctrl));
             memcpy(kev + 12, &uchar, sizeof(uchar));
             memcpy(kev + 16, &type, sizeof(type));
+
+            /*
+            FILE *f; f = fopen("putty.log", "a");
+            fprintf(f, "r: %ld, vkc: %c, vsc: %c, ctrl: %ld, uchar: %ld, type: %lc\n",
+                repeat, vkc, vsc, ctrl, uchar, type);
+            fclose(f);
+            */
 
             // base64-encode kev
             // result in null-terminated char* out

@@ -191,6 +191,7 @@ struct terminal_tag {
     int far2l_ext;
     bool is_apc;
     int clip_allowed;
+    bool clip_empty_pending;
 
     char id_string[1024];
 

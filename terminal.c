@@ -1677,6 +1677,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->far2l_ext = 0;
     term->is_apc = 0;
     term->clip_allowed = -1;
+    term->clip_empty_pending = 0;
 
     term->win = win;
     term->ucsdata = ucsdata;
@@ -2821,6 +2822,72 @@ static void do_osc(Terminal *term)
                 // next from the end byte is command
                 switch (d_out[d_count-2]) {
 
+                    case 'n':;
+
+                        /* // not ready yet
+
+                        // todo: generate some reply
+                        // todo: show notification only if window is out of focus
+                        // todo: remove icon after notification timeout or by mouse click
+
+                        // title length, source, utf8, no zero-terminate, bytes
+                        DWORD len1;
+                        memcpy(&len1, d_out+d_count-6, sizeof(len1));
+
+                        // text length, source, utf8, no zero-terminate, bytes
+                        DWORD len2;
+                        memcpy(&len2, d_out+d_count-6-4-len1, sizeof(len2));
+
+                        // destination (wide char)
+                        LPWSTR text_wc, title_wc;
+                        int textsz_wc, titlesz_wc;
+
+                        // notification may contain file names in non-latin
+                        // or may have localized title
+                        // so we can not assume ascii here and should do
+                        // full utf8->multibyte conversion
+
+                        titlesz_wc = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)(d_out+len2+4), len1, 0, 0);
+                        textsz_wc = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len2, 0, 0);
+
+                        if (titlesz_wc && textsz_wc) {
+                            title_wc = malloc((titlesz_wc+1)*sizeof(wchar_t));
+                            MultiByteToWideChar(CP_UTF8, 0, (LPCCH)(d_out+len2+4), len1, title_wc, titlesz_wc);
+                            text_wc = malloc((textsz_wc+1)*sizeof(wchar_t));
+                            MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len2, text_wc, textsz_wc);
+
+                            title_wc[titlesz_wc] = 0;
+                            text_wc[textsz_wc] = 0;
+
+                            NOTIFYICONDATAW pnid;
+
+                            // todo: do this on window focus also
+                            pnid.cbSize = sizeof(pnid);
+                            pnid.hWnd = hwnd;
+                            pnid.hIcon = LoadIcon(0, IDI_APPLICATION);
+                            pnid.uID = 200;
+                            Shell_NotifyIconW(NIM_DELETE, &pnid);
+                            
+                            // todo: use putty icon
+                            pnid.cbSize = sizeof(pnid);
+                            pnid.hWnd = hwnd;
+                            pnid.hIcon = LoadIcon(0, IDI_APPLICATION);
+                            pnid.uID = 200;
+                            pnid.uFlags = NIF_ICON | NIF_INFO | NIF_MESSAGE;
+                            pnid.uCallbackMessage = (WM_USER + 200);
+                            pnid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
+                            memcpy(pnid.szInfoTitle, title_wc, (titlesz_wc+1)*sizeof(wchar_t));
+                            memcpy(pnid.szInfo, text_wc, (textsz_wc+1)*sizeof(wchar_t));
+                            Shell_NotifyIconW(NIM_ADD, &pnid);
+
+                            free(text_wc);
+                            free(title_wc);
+                        }
+
+                        */
+
+                        break;
+
                     case 'w':
 
                         // get largest console window size
@@ -2868,17 +2935,28 @@ static void do_osc(Terminal *term)
 
                             case 'e':;
 
-                                OpenClipboard(hwnd);
-                                char ec_status = EmptyClipboard() ? 1 : 0;
-                                CloseClipboard();
+                                char ec_status;
+                                /*
+                                // EmptyClipboard() behaves VERY strange if called from here
+                                // (test case: many continious Ctrl+Ins presses
+                                // with selected text string of 174 characters in size),
+                                // but works well if called just before SetClipboardData().
+                                // So deferreing a call to it.
+                                if (term->clip_allowed == -1) {
+                                    OpenClipboard(hwnd);
+                                    ec_status = EmptyClipboard() ? 1 : 0;
+                                    CloseClipboard();
+                                }
+                                */
+                                term->clip_empty_pending = 1;
+                                ec_status = 1; // simulate "ok"
 
                                 reply_size = 2;
                                 reply = malloc(reply_size);
 
-                                memcpy(reply, &ec_status, sizeof(char));
+                                reply[0] = ec_status;
 
                                 break;
-
 
                             case 'a':;
 
@@ -2960,19 +3038,27 @@ static void do_osc(Terminal *term)
                             				memcpy(GData,buffer,BufferSize);
                             				GlobalUnlock(hData);
 
-                                             OpenClipboard(hwnd);
+                                            if (OpenClipboard(hwnd)) {
 
-                                             if (SetClipboardData(fmt, (HANDLE)hData)) {
+                                                if (term->clip_empty_pending) {
+                                                    EmptyClipboard(); // todo: check errors
+                                                    term->clip_empty_pending = 0;
+                                                }
+
+                                                if (!SetClipboardData(fmt, (HANDLE)hData)) {
+
+                                					GlobalFree(hData);
+                                                }
 
                                                 CloseClipboard();
 
-                                             } else {
+                                            } else {
 
                             					GlobalFree(hData);
                                             }
-                            			}
-                            			else
-                            			{
+
+                            			} else {
+
                             				GlobalFree(hData);
                             			}
                             		}
@@ -3004,11 +3090,13 @@ static void do_osc(Terminal *term)
 
                                     // clipboard stuff itself
 
-                                    wchar_t *ClipText=NULL;
+                                    wchar_t *ClipText = NULL;
+                                    HANDLE hClipData = NULL;
 
-                                    OpenClipboard(hwnd);
-                                	HANDLE hClipData=GetClipboardData(gfmt);
-                                    CloseClipboard();
+                                    if (OpenClipboard(hwnd)) {
+                                	   hClipData = GetClipboardData(gfmt);
+                                       CloseClipboard();
+                                    }
 
                                 	if (hClipData)
                                 	{
@@ -3025,6 +3113,7 @@ static void do_osc(Terminal *term)
 
                                 			GlobalUnlock(hClipData);
                                 		}
+
                                 	} else {
                                         // todo: process errors
                                     }
