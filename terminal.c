@@ -1677,7 +1677,6 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->far2l_ext = 0;
     term->is_apc = 0;
     term->clip_allowed = -1;
-    term->clip_empty_pending = 0;
 
     term->win = win;
     term->ucsdata = ucsdata;
@@ -2935,24 +2934,12 @@ static void do_osc(Terminal *term)
 
                             case 'e':;
 
-                                char ec_status;
-                                /*
-                                // EmptyClipboard() behaves VERY strange if called from here
-                                // (test case: many continious Ctrl+Ins presses
-                                // with selected text string of 174 characters in size),
-                                // but works well if called just before SetClipboardData().
-                                // So deferring a call to it.
-                                // UPD: That was caused by WM_DESTROYCLIPBOARD processing
-                                // in window.c, fixed. Still, deferring scheme works good,
-                                // so leaving it as is for now.
-                                if (term->clip_allowed == -1) {
+                                char ec_status = 0;
+                                if (term->clip_allowed == 1) {
                                     OpenClipboard(hwnd);
                                     ec_status = EmptyClipboard() ? 1 : 0;
                                     CloseClipboard();
                                 }
-                                */
-                                term->clip_empty_pending = 1;
-                                ec_status = 1; // simulate "ok"
 
                                 reply_size = 2;
                                 reply = malloc(reply_size);
@@ -3042,13 +3029,6 @@ static void do_osc(Terminal *term)
                             				GlobalUnlock(hData);
 
                                             if (OpenClipboard(hwnd)) {
-
-                                                if (term->clip_empty_pending) {
-
-                                                    term->clip_empty_pending = 0;
-                                                                                                        
-                                                    EmptyClipboard(); // todo: check errors
-                                                }
 
                                                 if (!SetClipboardData(fmt, (HANDLE)hData)) {
 
