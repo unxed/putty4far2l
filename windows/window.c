@@ -2763,9 +2763,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         ignore_clip = wParam;          /* don't panic on DESTROYCLIPBOARD */
         break;
       case WM_DESTROYCLIPBOARD:
-        if (!ignore_clip)
-            term_lost_clipboard_ownership(term, CLIP_SYSTEM);
-        ignore_clip = false;
+        /* far2l */
+        // In far2l extensions mode we should not do anything here,
+        // clipboard is handled by far2l extensions.
+        if (!(term->far2l_ext == 1) || (!term->clip_allowed)) {
+            if (!ignore_clip)
+                term_lost_clipboard_ownership(term, CLIP_SYSTEM);
+            ignore_clip = false;
+        }
         return 0;
       case WM_PAINT:
         {

@@ -2941,7 +2941,10 @@ static void do_osc(Terminal *term)
                                 // (test case: many continious Ctrl+Ins presses
                                 // with selected text string of 174 characters in size),
                                 // but works well if called just before SetClipboardData().
-                                // So deferreing a call to it.
+                                // So deferring a call to it.
+                                // UPD: That was caused by WM_DESTROYCLIPBOARD processing
+                                // in window.c, fixed. Still, deferring scheme works good,
+                                // so leaving it as is for now.
                                 if (term->clip_allowed == -1) {
                                     OpenClipboard(hwnd);
                                     ec_status = EmptyClipboard() ? 1 : 0;
