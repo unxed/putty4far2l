@@ -2910,7 +2910,7 @@ static void do_osc(Terminal *term)
                             case 'r':;
                                 // register format
 
-                                len = (DWORD)d_out[d_count-7];
+                                memcpy(&len, d_out + d_count - 3 - 4, sizeof(DWORD));
                                 d_out[len] = 0; // zero-terminate format name
 
                                 // far2l sends format name as (utf8?) string, which actually containing ascii only
@@ -2950,7 +2950,8 @@ static void do_osc(Terminal *term)
 
                             case 'a':;
 
-                                DWORD a_fmt = (DWORD)d_out[d_count-7];
+                                uint32_t a_fmt;
+                                memcpy(&a_fmt, d_out + d_count - 3 - 4, sizeof(uint32_t));
 
                                 char out = IsClipboardFormatAvailable(a_fmt) ? 1 : 0;
 
@@ -2964,7 +2965,7 @@ static void do_osc(Terminal *term)
                             case 'o':;
                                 // open
                                 // next from the end 4 bytes is client_id length
-                                len = (DWORD)d_out[d_count-7]; // FIXME: may be more that 1 byte (really no, but...)
+                                memcpy(&len, d_out + d_count - 3 - 4, sizeof(DWORD));
                                 d_out[len] = 0; // all remaining string is client id, make it zero terminated
 
                                 // todo: check/store client id, all that stuff
@@ -2997,7 +2998,11 @@ static void do_osc(Terminal *term)
 
                                 if (term->clip_allowed == 1) {
 
-                                    DWORD fmt = (DWORD)d_out[d_count-3-4];
+                                    // Never do like this! It takes char by index and converts to DWORD.
+                                    // Not takes two chars to fit DWORD. Really.
+                                    //DWORD fmt = (DWORD)d_out[d_count-3-4];
+                                    uint32_t fmt;
+                                    memcpy(&fmt, d_out + d_count - 3 - 4, sizeof(uint32_t));
 
                                     // id, 'c', 's', 4-byte fmt, next goes 4-byte len
                                     memcpy(&len, d_out + d_count - 3 - 4 - 4, sizeof(DWORD));
@@ -3021,6 +3026,8 @@ static void do_osc(Terminal *term)
                             		void *GData;
                             		int BufferSize=len/2+2;
 
+                                    bool set_successful = 0;
+
                             		if ((hData=GlobalAlloc(GMEM_MOVEABLE,BufferSize)))
                             		{
                             			if ((GData=GlobalLock(hData)))
@@ -3033,6 +3040,9 @@ static void do_osc(Terminal *term)
                                                 if (!SetClipboardData(fmt, (HANDLE)hData)) {
 
                                 					GlobalFree(hData);
+
+                                                } else {
+                                                    set_successful = 1;
                                                 }
 
                                                 CloseClipboard();
@@ -3055,7 +3065,7 @@ static void do_osc(Terminal *term)
                                     reply = malloc(reply_size);
 
                                     // first reply byte is status
-                                    reply[0] = 1; // ok; TODO: set to 0 if set clipboard failed
+                                    reply[0] = set_successful;
 
                                 } else {
 
@@ -3071,7 +3081,8 @@ static void do_osc(Terminal *term)
 
                                 if (term->clip_allowed == 1) {
 
-                                    UINT gfmt = (DWORD)d_out[d_count-3-4];
+                                    uint32_t gfmt;
+                                    memcpy(&gfmt, d_out + d_count - 3 - 4, sizeof(uint32_t));
 
                                     // clipboard stuff itself
 
@@ -3119,29 +3130,39 @@ static void do_osc(Terminal *term)
 
                                         len = wcslen(ClipText);
 
-                                        // utf32 string size in bytes
-                                        size = (len+1)*4; // +1 = tailing zeros
+                                        if (!len) {
+                                            reply_size = 5;
+                                            reply = malloc(reply_size);
 
-                                        // + length (4 bytes) + id (1 byte)
-                                        reply_size = size + 5;
+                                            reply[0] = 0;
+                                            reply[1] = 0;
+                                            reply[2] = 0;
+                                            reply[3] = 0;
+                                        } else {
 
-                                        reply = malloc(reply_size);
+                                            // utf32 string size in bytes
+                                            size = (len+1)*4; // +1 = tailing zeros
 
-                                        // 'convert' to utf32
-                                        for (int i=0;i<len*4;i+=4) {
-                                            memcpy(reply + i, ClipText + i/4, 2);
-                                            reply[i+2] = 0;
-                                            reply[i+3] = 0;
+                                            // + length (4 bytes) + id (1 byte)
+                                            reply_size = size + 5;
+
+                                            reply = malloc(reply_size);
+
+                                            // 'convert' to utf32
+                                            for (int i=0;i<len*4;i+=4) {
+                                                memcpy(reply + i, ClipText + i/4, 2);
+                                                reply[i+2] = 0;
+                                                reply[i+3] = 0;
+                                            }
+                                            // zero terminate
+                                            reply[len*4] = 0;
+                                            reply[len*4+1] = 0;
+                                            reply[len*4+2] = 0;
+                                            reply[len*4+3] = 0;
+
+                                            // set size
+                                            memcpy(reply + (len+1)*4, &size, sizeof(uint32_t));
                                         }
-                                        // zero terminate
-                                        reply[len*4] = 0;
-                                        reply[len*4+1] = 0;
-                                        reply[len*4+2] = 0;
-                                        reply[len*4+3] = 0;
-
-                                        // set size
-                                        memcpy(reply + (len+1)*4, &size, sizeof(uint32_t));
-
                                     }
 
                                     free(ClipText);
