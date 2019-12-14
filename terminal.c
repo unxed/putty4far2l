@@ -3041,8 +3041,10 @@ static void do_osc(Terminal *term)
                                             if (OpenClipboard(hwnd)) {
 
                                                 if (term->clip_empty_pending) {
-                                                    EmptyClipboard(); // todo: check errors
+
                                                     term->clip_empty_pending = 0;
+                                                                                                        
+                                                    EmptyClipboard(); // todo: check errors
                                                 }
 
                                                 if (!SetClipboardData(fmt, (HANDLE)hData)) {
