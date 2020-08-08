@@ -3235,6 +3235,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             vkc = LOWORD(wParam);
             vsc = HIWORD(lParam) & 0xFF;
 
+            if (vkc == VK_TAB) {
+                vsc = 0;
+            }
+
             // set control keys state
             ctrl = 0;
             if (GetAsyncKeyState(VK_LCONTROL)) { ctrl |= LEFT_CTRL_PRESSED; }
