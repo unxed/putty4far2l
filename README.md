@@ -25,6 +25,7 @@ cd putty4far2l/windows
 Если вы планируете собирать PuTTY на Linux и тестировать в wine (я именно так и делаю), может потребоваться [снять все галки](https://bugs.winehq.org/show_bug.cgi?id=48196) в Connection-SSH-Auth-GSSAPI, а то будет вылетать (или же сделать `sudo apt install libkrb5-3:i386 libgssapi-krb5-2:i386`).
 
 Штуки, которые можно улучшить (конкретных планов по ним, впрочем, у меня нет):
+- Более корректное преобразование UTF16<->32 (для синхронизации буфера обмена)
 - Лучше обрабатывать ошибки
 - Доработать поддержку буфера обмена (запоминать разрешения доступа для конкретных клиентов)
 - Сделать формат буфера обмена FAR_VerticalBlock_Unicode совместимым с Far for Windows (если возможно)
@@ -61,6 +62,7 @@ Or for x86_64:
 If you plan to build PuTTY on Linux and test in wine (as do I), you may need to [uncheck](https://bugs.winehq.org/show_bug.cgi?id=48196) all checkboxes in Connection-SSH-Auth-GSSAPI to avoid pagefaults (or do `sudo apt install libkrb5-3:i386 libgssapi-krb5-2:i386`).
 
 Things that can be made better (I have no concrete plans on it all, though):
+- Better UTF16<->32 conversion (for clipboard sync)
 - Better errors processing
 - Better clipboard support (option to allow sync permanently for specific clients)
 - FAR_VerticalBlock_Unicode clipboard format interoperability with Windows Far (if possible)
