@@ -3235,7 +3235,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             vkc = LOWORD(wParam);
             vsc = HIWORD(lParam) & 0xFF;
 
-            if (vkc == VK_TAB) {
+            // this fixes far2l's "editor autocomplete" plugin behavior
+            if ((vkc == VK_TAB) || (vkc == VK_BACK) || (vkc == VK_ESCAPE) || (vkc == VK_DELETE)) {
                 vsc = 0;
             }
 
