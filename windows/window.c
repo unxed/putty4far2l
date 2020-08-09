@@ -3240,6 +3240,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 vsc = 0;
             }
 
+            // fixes strange alt+arrows behavior
+            if ((vkc == VK_LEFT) || (vkc == VK_RIGHT) || (vkc == VK_UP) || (vkc == VK_DOWN)) {
+                vsc = 0;
+            }
+
             // set control keys state
             ctrl = 0;
             if (GetAsyncKeyState(VK_LCONTROL)) { ctrl |= LEFT_CTRL_PRESSED; }
