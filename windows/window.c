@@ -3223,17 +3223,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         if (term->far2l_ext) {
 
             // far2l_ext keyboard input event structure
-            DWORD repeat; // 4
-            WORD vkc;     // 2
-            WORD vsc;     // 2
-            DWORD ctrl;   // 4
-            DWORD uchar;  // 4
-            CHAR type;    // 1
+            WORD repeat = 0;  // 2
+            WORD vkc;         // 2
+            WORD vsc;         // 2
+            DWORD ctrl;       // 4
+            DWORD uchar;      // 4
+            CHAR type;        // 1
 
             // set repeat, virtual keycode, virtual scancode
-            repeat = lParam & 0xFFFF;
-            vkc = LOWORD(wParam);
+            repeat = LOWORD(lParam);
             vsc = HIWORD(lParam) & 0xFF;
+            vkc = LOWORD(wParam);
 
             // this fixes far2l's "editor autocomplete" plugin behavior
             if ((vkc == VK_TAB) || (vkc == VK_BACK) || (vkc == VK_ESCAPE) || (vkc == VK_DELETE)) {
@@ -3278,17 +3278,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 type = 'k';
             }
 
-            char* kev = malloc(17); // keyboard event structure length
+            char* kev = malloc(15); // keyboard event structure length
             memcpy(kev, &repeat, sizeof(repeat));
-            memcpy(kev + 4, &vkc, sizeof(vkc));
-            memcpy(kev + 6, &vsc, sizeof(vsc));
-            memcpy(kev + 8, &ctrl, sizeof(ctrl));
-            memcpy(kev + 12, &uchar, sizeof(uchar));
-            memcpy(kev + 16, &type, sizeof(type));
+            memcpy(kev + 2, &vkc, sizeof(vkc));
+            memcpy(kev + 4, &vsc, sizeof(vsc));
+            memcpy(kev + 6, &ctrl, sizeof(ctrl));
+            memcpy(kev + 10, &uchar, sizeof(uchar));
+            memcpy(kev + 14, &type, sizeof(type));
 
             /*
             FILE *f; f = fopen("putty.log", "a");
-            fprintf(f, "r: %ld, vkc: %c, vsc: %c, ctrl: %ld, uchar: %ld, type: %lc\n",
+            fprintf(f, "r: %d, vkc: %c, vsc: %c, ctrl: %ld, uchar: %ld, type: %lc\n",
+                repeat, vkc, vsc, ctrl, uchar, type);
+            fprintf(f, "r: %d, vkc: %d, vsc: %d, ctrl: %ld, uchar: %ld, type: %d\n",
                 repeat, vkc, vsc, ctrl, uchar, type);
             fclose(f);
             */
@@ -3297,8 +3299,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             // result in null-terminated char* out
         	base64_encodestate _state;
             base64_init_encodestate(&_state);
-            char* out = malloc(17*2);
-            int count = base64_encode_block(kev, 17, out, &_state);
+            char* out = malloc(15*2);
+            int count = base64_encode_block(kev, 15, out, &_state);
             // finishing '=' characters
             char* next_char = out + count;
             switch (_state.step)
@@ -3320,7 +3322,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
             /*
             f = fopen("putty.log", "a");
-            fprintf(f, "sizeK: %d, count: %d, b64: %s\n", sizeof(kev), count, out);
+            fprintf(f, "count: %d, b64: %s\n", count, out);
             fclose(f);
             */
 
