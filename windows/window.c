@@ -3223,7 +3223,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         if (term->far2l_ext) {
 
             // far2l_ext keyboard input event structure
-            WORD repeat = 0;  // 2
+            WORD repeat;      // 2
             WORD vkc;         // 2
             WORD vsc;         // 2
             DWORD ctrl;       // 4
