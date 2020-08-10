@@ -2751,7 +2751,6 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
 static void do_osc(Terminal *term)
 {
     /* far2l */
-    #ifdef _WINDOWS
     if (term->is_apc) {
 
         /*
@@ -2770,6 +2769,11 @@ static void do_osc(Terminal *term)
         если не пролезаем :)
 
         */
+
+        #ifndef _WINDOWS
+            #define DWORD unsigned int
+            #define WORD unsigned short
+        #endif
 
         if (strncmp(term->osc_string, "far2l", 5) == 0) {
 
@@ -2807,7 +2811,9 @@ static void do_osc(Terminal *term)
                 if (term->osc_strlen == OSC_STR_MAX) {
                     // it's possibly too large clipboard
 
+                    #ifdef _WINDOWS
                     MessageBox(hwnd, "Too large clipboard :(", "Error", MB_OK);
+                    #endif
 
                     // correct request id is lost forever
                     // so we can not prevent far2l from hanging
@@ -2914,9 +2920,11 @@ static void do_osc(Terminal *term)
                                 memcpy(&len, d_out + d_count - 3 - 4, sizeof(DWORD));
                                 d_out[len] = 0; // zero-terminate format name
 
+                                #ifdef _WINDOWS
                                 // far2l sends format name as (utf8?) string, which actually containing ascii only
                                 // so we can just call ascii function
                                 uint32_t status = RegisterClipboardFormatA(d_out);
+                                #endif
 
                                 /*
                                 FILE *f; f = fopen("putty.log", "a");
@@ -2929,23 +2937,33 @@ static void do_osc(Terminal *term)
                                 reply_size = 5;
                                 reply = malloc(reply_size);
 
+                                #ifdef _WINDOWS
                                 memcpy(reply, &status, sizeof(uint32_t));
+                                #else
+                                bzero(reply, sizeof(uint32_t));
+                                #endif
 
                                 break;
 
                             case 'e':;
 
+                                #ifdef _WINDOWS
                                 char ec_status = 0;
                                 if (term->clip_allowed == 1) {
                                     OpenClipboard(hwnd);
                                     ec_status = EmptyClipboard() ? 1 : 0;
                                     CloseClipboard();
                                 }
+                                #endif
 
                                 reply_size = 2;
                                 reply = malloc(reply_size);
 
+                                #ifdef _WINDOWS
                                 reply[0] = ec_status;
+                                #else
+                                reply[0] = 0;
+                                #endif
 
                                 break;
 
@@ -2954,12 +2972,18 @@ static void do_osc(Terminal *term)
                                 uint32_t a_fmt;
                                 memcpy(&a_fmt, d_out + d_count - 3 - 4, sizeof(uint32_t));
 
+                                #ifdef _WINDOWS
                                 char out = IsClipboardFormatAvailable(a_fmt) ? 1 : 0;
+                                #endif
 
                                 reply_size = 2;
                                 reply = malloc(reply_size);
 
+                                #ifdef _WINDOWS
                                 reply[0] = out;
+                                #else
+                                reply[0] = 0;
+                                #endif
 
                                 break;
 
@@ -2974,6 +2998,7 @@ static void do_osc(Terminal *term)
                                 reply_size = 2;
                                 reply = malloc(reply_size);
 
+                                #ifdef _WINDOWS
                                 if (term->clip_allowed == -1) {
                                     int status = MessageBox(hwnd,
                                         "Allow far2l clipboard sync?", "PyTTY", MB_OKCANCEL);
@@ -2991,6 +3016,9 @@ static void do_osc(Terminal *term)
                                 } else {
                                     reply[0] = -1;
                                 }
+                                #else
+                                reply[0] = -1;
+                                #endif
 
                                 break;
 
@@ -2998,6 +3026,8 @@ static void do_osc(Terminal *term)
                                 // set data
 
                                 if (term->clip_allowed == 1) {
+
+                                    #ifdef _WINDOWS
 
                                     // Never do like this! It takes char by index and converts to DWORD.
                                     // Not takes two chars to fit DWORD. Really.
@@ -3061,12 +3091,18 @@ static void do_osc(Terminal *term)
 
                                     free(buffer);
 
+                                    #endif
+
                                     // prepare reply
                                     reply_size = 2;
                                     reply = malloc(reply_size);
 
                                     // first reply byte is status
+                                    #ifdef _WINDOWS
                                     reply[0] = set_successful;
+                                    #else
+                                    reply[0] = 0;
+                                    #endif
 
                                 } else {
 
@@ -3081,6 +3117,8 @@ static void do_osc(Terminal *term)
                             case 'g':;
 
                                 if (term->clip_allowed == 1) {
+
+                                    #ifdef _WINDOWS
 
                                     uint32_t gfmt;
                                     memcpy(&gfmt, d_out + d_count - 3 - 4, sizeof(uint32_t));
@@ -3167,6 +3205,16 @@ static void do_osc(Terminal *term)
                                     }
 
                                     free(ClipText);
+
+                                    #else
+                                    reply_size = 5;
+                                    reply = malloc(reply_size);
+
+                                    reply[0] = 0;
+                                    reply[1] = 0;
+                                    reply[2] = 0;
+                                    reply[3] = 0;
+                                    #endif
 
                                 } else {
 
@@ -3274,11 +3322,6 @@ static void do_osc(Terminal *term)
         term->is_apc = 0;
 
     } else
-    #else
-    if (term->is_apc) {
-        // unix implementation of far2l terminal extensions should be placed here
-    } else
-    #endif
 
     if (term->osc_w) {
         while (term->osc_strlen--)

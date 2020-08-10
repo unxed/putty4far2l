@@ -5,6 +5,8 @@
 
 #define _GNU_SOURCE
 
+#include <ctype.h>
+
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -45,6 +47,10 @@
 #endif
 
 #include "x11misc.h"
+
+/* far2l base64 */
+#include <../windows/cencode.h>
+#include <../windows/cdecode.h>
 
 /* Colours come in two flavours: configurable, and xterm-extended. */
 #define NEXTCOLOURS 240 /* 216 colour-cube plus 24 shades of grey */
@@ -1031,6 +1037,186 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     char num_keypad_key = '\0';
 
     noise_ultralight(NOISE_SOURCE_KEY, event->keyval);
+
+    // far2l
+
+    /*
+    FILE *f; f = fopen("putty.log", "a");
+    fprintf(f, "key_event: type=%d keyval=%d state=%d "
+          "hardware_keycode=%d is_modifier=%s string=[%s]\n",
+          event->type, event->keyval, event->state,
+          event->hardware_keycode,
+          event->is_modifier ? "true" : "false",
+          event->string);
+    fclose(f);
+    */
+
+    if (inst->term->far2l_ext) {
+        // far2l_ext keyboard input event structure
+        unsigned short repeat = 1;  // 2
+        unsigned short vkc = 0;     // 2
+        unsigned short vsc = 0;     // 2
+        unsigned int ctrl = 0;      // 4
+        gunichar uchar;             // 4
+        char type;                  // 1
+
+        if (event->type == GDK_KEY_PRESS) { type = 'K'; }
+        else if (event->type == GDK_KEY_RELEASE) { type = 'k'; }
+        else { return false; }
+
+        // fixme: is where any way to distinguish left and right modifier key presses?
+        if (event->state & GDK_CONTROL_MASK) { ctrl |= 0x0008; } // LEFT_CTRL_PRESSED
+        if (event->state & GDK_MOD1_MASK) { ctrl |= 0x0002; } // LEFT_ALT_PRESSED
+        if (event->state & GDK_SHIFT_MASK) { ctrl |= 0x0010; } // SHIFT_PRESSED
+
+        uchar = g_utf8_get_char(event->string);
+
+        switch (event->hardware_keycode) {
+
+            // todo: ctrl, shift, alt,
+            // numlock, capslock, scrolllock, winkey, menukey,
+            // numpad, replace stubs with correspoding VK codes
+            
+            case 83: vkc = 0x25; break; // VK_LEFT
+            case 85: vkc = 0x27; break; // VK_RIGHT
+            case 80: vkc = 0x26; break; // VK_UP
+            case 84: vkc = 0x28; break; // VK_DOWN
+
+            case 67: vkc = 0x70; break; // VK_F1
+            case 68: vkc = 0x71; break; // VK_F2
+            case 69: vkc = 0x72; break; // VK_F3
+            case 70: vkc = 0x73; break; // VK_F4
+            case 71: vkc = 0x74; break; // VK_F5
+            case 72: vkc = 0x75; break; // VK_F6
+            case 73: vkc = 0x76; break; // VK_F7
+            case 74: vkc = 0x77; break; // VK_F8
+            case 75: vkc = 0x78; break; // VK_F9
+            case 76: vkc = 0x79; break; // VK_F10
+            case 95: vkc = 0x7A; break; // VK_F11
+            case 96: vkc = 0x7B; break; // VK_F12
+
+            case 10: vkc = 0x31; break; // 1
+            case 11: vkc = 0x32; break; // 2
+            case 12: vkc = 0x33; break; // 3
+            case 13: vkc = 0x34; break; // 4
+            case 14: vkc = 0x35; break; // 5
+            case 15: vkc = 0x36; break; // 6
+            case 16: vkc = 0x37; break; // 7
+            case 17: vkc = 0x38; break; // 8
+            case 18: vkc = 0x39; break; // 9
+            case 19: vkc = 0x30; break; // 0
+            case 20: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+            case 21: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+
+            case 24: vkc = 0x51; break; // Q
+            case 25: vkc = 0x52; break; // W
+            case 26: vkc = 0x45; break; // E
+            case 27: vkc = 0x52; break; // R
+            case 28: vkc = 0x54; break; // T
+            case 29: vkc = 0x59; break; // Y
+            case 30: vkc = 0x55; break; // U
+            case 31: vkc = 0x49; break; // I
+            case 32: vkc = 0x4F; break; // O
+            case 33: vkc = 0x50; break; // P
+            case 34: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+            case 35: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+
+            case 38: vkc = 0x41; break; // A
+            case 39: vkc = 0x53; break; // S
+            case 40: vkc = 0x44; break; // D
+            case 41: vkc = 0x46; break; // F
+            case 42: vkc = 0x47; break; // G
+            case 43: vkc = 0x48; break; // H
+            case 44: vkc = 0x4A; break; // J
+            case 45: vkc = 0x4B; break; // K
+            case 46: vkc = 0x4C; break; // L
+            case 47: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+            case 48: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+            case 49: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+
+            case 51: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+            case 52: vkc = 0x5A; break; // Z
+            case 53: vkc = 0x58; break; // X
+            case 54: vkc = 0x43; break; // C
+            case 55: vkc = 0x56; break; // V
+            case 56: vkc = 0x42; break; // B
+            case 57: vkc = 0x4E; break; // N
+            case 58: vkc = 0x4D; break; // M
+            case 59: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+            case 60: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+            case 61: vkc = 0xBD; break; // stub: VK_OEM_MINUS
+
+            case 118: vkc = 0x2D; break; // VK_INSERT
+            case 119: vkc = 0x2E; break; // VK_DELETE
+            case 110: vkc = 0x24; break; // VK_HOME
+            case 115: vkc = 0x23; break; // VK_END
+            case 112: vkc = 0x21; break; // VK_PRIOR
+            case 117: vkc = 0x22; break; // VK_NEXT
+            
+            case 22: vkc = 0x08; break; // VK_BACK
+            case 23: vkc = 0x09; break; // VK_TAB
+            case 36: vkc = 0x0D; break; // VK_RETURN
+            case  9: vkc = 0x1B; break; // VK_ESCAPE
+
+            case 106: vkc = 0x6F; break; // VK_DIVIDE
+            case  63: vkc = 0x6A; break; // VK_MULTIPLY
+            case  82: vkc = 0x6D; break; // VK_SUBTRACT
+            case  86: vkc = 0x6B; break; // VK_ADD
+            case  91: vkc = 0x6E; break; // VK_DECIMAL
+
+            case  65: vkc = 0x20; break; // VK_SPACE
+        }
+
+        char* kev = malloc(15); // keyboard event structure length
+        memcpy(kev, &repeat, sizeof(repeat));
+        memcpy(kev + 2, &vkc, sizeof(vkc));
+        memcpy(kev + 4, &vsc, sizeof(vsc));
+        memcpy(kev + 6, &ctrl, sizeof(ctrl));
+        memcpy(kev + 10, &uchar, sizeof(uchar));
+        memcpy(kev + 14, &type, sizeof(type));
+
+        // base64-encode kev
+        // result in null-terminated char* out
+    	base64_encodestate _state;
+        base64_init_encodestate(&_state);
+        char* out = malloc(15*2);
+        int count = base64_encode_block(kev, 15, out, &_state);
+        // finishing '=' characters
+        char* next_char = out + count;
+        switch (_state.step)
+    	{
+    	case step_B:
+    		*next_char++ = base64_encode_value(_state.result);
+    		*next_char++ = '=';
+    		*next_char++ = '=';
+    		break;
+    	case step_C:
+    		*next_char++ = base64_encode_value(_state.result);
+    		*next_char++ = '=';
+    		break;
+        case step_A:
+            break;
+    	}
+        count = next_char - out;
+        out[count] = 0;
+
+        // send escape seq
+
+        char* str = "\x1b_f2l";
+        backend_send(inst->backend, str, strlen(str));
+
+        backend_send(inst->backend, out, count);
+
+        char* str2 = "\x07";
+        backend_send(inst->backend, str2, strlen(str2));
+
+        // don't forget to free memory :)
+        free(out);
+
+        // we should not do any other key processing in this mode
+        return true;
+
+    }
 
 #ifdef OSX_META_KEY_CONFIG
     if (event->state & inst->system_mod_mask)

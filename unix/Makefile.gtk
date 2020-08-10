@@ -334,7 +334,7 @@ ptermapp: be_none.o callback.o conf.o config.o dialog.o fromucs.o gtkapp.o \
 		toucs.o tree234.o utf8.o utils.o uxcfg.o uxmisc.o uxprint.o \
 		uxpterm.o uxpty.o uxsel.o uxsignal.o uxstore.o uxucs.o \
 		version.o wcwidth.o x11misc.o xenc.o xkeysym.o xpmptcfg.o \
-		xpmpterm.o
+		xpmpterm.o cencode.o cdecode.o
 	$(CC) -o $@ be_none.o callback.o conf.o config.o dialog.o fromucs.o \
 		gtkapp.o gtkcfg.o gtkcols.o gtkcomm.o gtkdlg.o gtkfont.o \
 		gtkmisc.o gtkwin.o ldisc.o localenc.o logging.o macenc.o \
@@ -344,7 +344,7 @@ ptermapp: be_none.o callback.o conf.o config.o dialog.o fromucs.o gtkapp.o \
 		time.o timing.o toucs.o tree234.o utf8.o utils.o uxcfg.o \
 		uxmisc.o uxprint.o uxpterm.o uxpty.o uxsel.o uxsignal.o \
 		uxstore.o uxucs.o version.o wcwidth.o x11misc.o xenc.o \
-		xkeysym.o xpmptcfg.o xpmpterm.o $(XLDFLAGS) 
+		xkeysym.o xpmptcfg.o xpmpterm.o cencode.o cdecode.o $(XLDFLAGS) 
 
 putty: agentf.o aqsync.o be_all_s.o be_misc.o callback.o cmdline.o conf.o \
 		config.o cproxy.o dialog.o ecc.o errsock.o fromucs.o \
@@ -368,7 +368,8 @@ putty: agentf.o aqsync.o be_all_s.o be_misc.o callback.o cmdline.o conf.o \
 		uxnoise.o uxpeer.o uxpoll.o uxprint.o uxproxy.o uxputty.o \
 		uxsel.o uxser.o uxshare.o uxsignal.o uxstore.o uxucs.o \
 		uxutils.o version.o wcwidth.o wildcard.o x11fwd.o x11misc.o \
-		xenc.o xkeysym.o xpmpucfg.o xpmputty.o
+		xenc.o xkeysym.o xpmpucfg.o xpmputty.o \
+        cencode.o cdecode.o
 	$(CC) -o $@ agentf.o aqsync.o be_all_s.o be_misc.o callback.o \
 		cmdline.o conf.o config.o cproxy.o dialog.o ecc.o errsock.o \
 		fromucs.o gtkcfg.o gtkcols.o gtkcomm.o gtkdlg.o gtkfont.o \
@@ -391,7 +392,8 @@ putty: agentf.o aqsync.o be_all_s.o be_misc.o callback.o cmdline.o conf.o \
 		uxnoise.o uxpeer.o uxpoll.o uxprint.o uxproxy.o uxputty.o \
 		uxsel.o uxser.o uxshare.o uxsignal.o uxstore.o uxucs.o \
 		uxutils.o version.o wcwidth.o wildcard.o x11fwd.o x11misc.o \
-		xenc.o xkeysym.o xpmpucfg.o xpmputty.o $(XLDFLAGS) 
+		xenc.o xkeysym.o xpmpucfg.o xpmputty.o \
+        cencode.o cdecode.o $(XLDFLAGS) 
 
 puttyapp: agentf.o aqsync.o be_all_s.o be_misc.o callback.o conf.o config.o \
 		cproxy.o dialog.o ecc.o errsock.o fromucs.o gtkapp.o \
@@ -1605,6 +1607,12 @@ xpmpucfg.o: ../unix/xpmpucfg.c
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../unix/xpmpucfg.c
 xpmputty.o: ../unix/xpmputty.c
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../unix/xpmputty.c
+
+cencode.o: ../windows/cencode.c
+	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../windows/cencode.c
+
+cdecode.o: ../windows/cdecode.c
+	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../windows/cdecode.c
 
 install:
 	mkdir -p $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir)
