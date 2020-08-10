@@ -2751,6 +2751,7 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
 static void do_osc(Terminal *term)
 {
     /* far2l */
+    #ifdef _WINDOWS
     if (term->is_apc) {
 
         /*
@@ -3273,6 +3274,7 @@ static void do_osc(Terminal *term)
         term->is_apc = 0;
 
     } else
+    #endif
 
     if (term->osc_w) {
         while (term->osc_strlen--)
