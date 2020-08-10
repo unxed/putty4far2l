@@ -3274,6 +3274,10 @@ static void do_osc(Terminal *term)
         term->is_apc = 0;
 
     } else
+    #else
+    if (term->is_apc) {
+        // unix implementation of far2l terminal extensions should be placed here
+    } else
     #endif
 
     if (term->osc_w) {
