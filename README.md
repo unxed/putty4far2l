@@ -1,7 +1,7 @@
 # putty4far2l
 **Readme in english is below**
 
-Форк [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 с поддержкой [расширений](https://github.com/cyd01/KiTTY/issues/74#issuecomment-626917718) терминала [far2l](https://github.com/elfmz/far2l) (на данный момент готова поддержка сочетаний клавиш, необходимых far2l, и синхронизация буфера обмена). На данный момент расширения работают только в версии putty для Windows (поддержка расширений в сборке для unix-like систем пока на очень ранней стадии), используйте встроенный терминал графической версии far2l на unix-подобных системах.
+Форк [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.73 с поддержкой [расширений](https://github.com/cyd01/KiTTY/issues/74#issuecomment-626917718) терминала [far2l](https://github.com/elfmz/far2l) (на данный момент готова поддержка сочетаний клавиш, необходимых far2l, и синхронизация буфера обмена). На данный момент расширения работают только в версии putty для Windows (поддержка расширений в сборке для unix-like систем пока на очень ранней стадии реализации), используйте встроенный терминал графической версии far2l на unix-подобных системах.
 
 [putty.exe для x86](https://github.com/unxed/putty4far2l/raw/master/windows/putty.exe)
 
