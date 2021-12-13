@@ -3061,7 +3061,7 @@ static void do_osc(Terminal *term)
                                       }
                                       fmt = CF_UNICODETEXT;
 
-                                    } else if (fmt >= CF_UNICODETEXT || fmt >= 0xC000) {
+                                    } else if (fmt == CF_UNICODETEXT || fmt >= 0xC000) {
                                       // very stupid utf32->utf16 'conversion'
                                       buffer = calloc((len / sizeof(uint32_t)) + 1, sizeof(wchar_t));
                                       for (int i=0; i < len / sizeof(uint32_t); ++i) {
