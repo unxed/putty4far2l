@@ -3037,7 +3037,7 @@ static void do_osc(Terminal *term)
                             case 's':;
                                 // set data
 
-                                if (term->clip_allowed == 1) {
+                                if (term->clip_allowed == 1 && d_count >= 4 + 4 + 3) {
 
                                     #ifdef _WINDOWS
 
@@ -3045,33 +3045,41 @@ static void do_osc(Terminal *term)
                                     // Not takes two chars to fit DWORD. Really.
                                     //DWORD fmt = (DWORD)d_out[d_count-3-4];
                                     uint32_t fmt;
+                                    char* buffer = NULL;
                                     memcpy(&fmt, d_out + d_count - 3 - 4, sizeof(uint32_t));
 
                                     // id, 'c', 's', 4-byte fmt, next goes 4-byte len
                                     memcpy(&len, d_out + d_count - 3 - 4 - 4, sizeof(DWORD));
+                                    if (len > d_count - 3 - 4 - 4)
+                                        len = d_count - 3 - 4 - 4;
 
-                                    // zero-terminate
-                                    d_out[len] = 0;
-                                    d_out[len+1] = 0;
-                                    d_out[len+2] = 0;
-                                    d_out[len+3] = 0;
+                                    if (fmt == CF_TEXT) {
+                                      int cnt = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len, NULL, 0);
+                                      if (cnt > 0) {
+                                        buffer = calloc(cnt + 1, sizeof(wchar_t));
+                                        MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len, (PWCHAR)buffer, cnt);
+                                      }
+                                      fmt = CF_UNICODETEXT;
 
-                                    // very stupid utf32->utf16 'conversion'
-                                    char* buffer = malloc(len/2+2);
-                                    for (int i=0;i<len/2;i+=2) {
-                                        buffer[i] = d_out[i*2];
-                                        buffer[i+1] = d_out[i*2+1];
+                                    } else if (fmt >= CF_UNICODETEXT || fmt >= 0xC000) {
+                                      // very stupid utf32->utf16 'conversion'
+                                      buffer = calloc((len / sizeof(uint32_t)) + 1, sizeof(wchar_t));
+                                      for (int i=0; i < len / sizeof(uint32_t); ++i) {
+                                          memcpy(&buffer[i * sizeof(wchar_t)], &d_out[i * sizeof(uint32_t)], sizeof(wchar_t));
+                                      }
                                     }
 
+
+
+                                        int BufferSize = buffer ? (wcslen((PWCHAR)buffer) + 1) * sizeof(wchar_t) : 0;
                                     // clipboard stuff itself
 
                                 	HGLOBAL hData;
                             		void *GData;
-                            		int BufferSize=len/2+2;
 
                                     bool set_successful = 0;
 
-                            		if ((hData=GlobalAlloc(GMEM_MOVEABLE,BufferSize)))
+                            		if (buffer && (hData=GlobalAlloc(GMEM_MOVEABLE,BufferSize)))
                             		{
                             			if ((GData=GlobalLock(hData)))
                             			{
@@ -3137,95 +3145,72 @@ static void do_osc(Terminal *term)
 
                                     // clipboard stuff itself
 
-                                    wchar_t *ClipText = NULL;
-                                    HANDLE hClipData = NULL;
+                                    void *ClipText = NULL;
+                                    int32_t ClipTextSize = 0;
 
-                                    if (OpenClipboard(hwnd)) {
-                                	   hClipData = GetClipboardData(gfmt);
-                                       CloseClipboard();
-                                    }
+                                    if ( (gfmt == CF_TEXT || gfmt == CF_UNICODETEXT || gfmt >= 0xC000) && OpenClipboard(hwnd)) {
+					HANDLE hClipData = GetClipboardData((gfmt == CF_TEXT) ? CF_UNICODETEXT : gfmt);
 
                                 	if (hClipData)
                                 	{
-                                		wchar_t *ClipAddr=(wchar_t *)GlobalLock(hClipData);
+                                		void *pClipData=GlobalLock(hClipData);
 
-                                		if (ClipAddr)
+                                		if (pClipData)
                                 		{
-                                			int BufferSize;
-                                            BufferSize=wcslen(ClipAddr)+1;
-                                            ClipText=(wchar_t *)malloc(BufferSize*sizeof(wchar_t));
+							size_t n = wcsnlen((wchar_t *)pClipData, GlobalSize(hClipData) / sizeof(wchar_t));
 
-                                			if (ClipText)
-                                				wcscpy(ClipText, ClipAddr);
+                                			if (gfmt == CF_TEXT) {
+								ClipTextSize = WideCharToMultiByte(CP_UTF8, 0, (wchar_t *)pClipData, n, NULL, 0, NULL, NULL) + 1;
+								if (ClipTextSize >= 0) {
+									ClipText = calloc(ClipTextSize + 1, 1);
+									if (ClipText) {
+										WideCharToMultiByte(CP_UTF8, 0, (wchar_t *)pClipData, n, (char *)ClipText, ClipTextSize, NULL, NULL);
+										ClipTextSize = strlen((char *)ClipText) + 1;
+									}
+								}
+
+                                			} else {
+								ClipText = calloc((n + 1), sizeof(uint32_t));
+								if (ClipText) {
+									for (size_t i = 0; i < n; ++i) {
+										((uint32_t *)ClipText)[i] = ((uint16_t *)pClipData)[i];
+									}
+									ClipTextSize = (n + 1) * sizeof(uint32_t);
+								}
+                                                        }
 
                                 			GlobalUnlock(hClipData);
                                 		}
 
                                 	} else {
                                         // todo: process errors
+                                        }
+                                       CloseClipboard();
                                     }
 
-                                    uint32_t size; // clipboard size (in utf32) field
 
-                                    if (!ClipText) {
+                                    if (!ClipText || ClipTextSize <= 0) {
 
                                         // clipboard is empty
                                         reply_size = 5; // 4 bytes for size and one for id
-                                        reply = malloc(reply_size);
-
-                                        size = 0;
-
-                                        memcpy(reply, &size, sizeof(uint32_t));
+                                        reply = calloc(1, reply_size);
 
                                     } else {
 
-                                        len = wcslen(ClipText);
+                                        // + length (4 bytes) + id (1 byte)
+                                        reply_size = ClipTextSize + 5;
+                                        reply = calloc(1, reply_size);
+                                        memcpy(reply, ClipText, ClipTextSize);
 
-                                        if (!len) {
-                                            reply_size = 5;
-                                            reply = malloc(reply_size);
-
-                                            reply[0] = 0;
-                                            reply[1] = 0;
-                                            reply[2] = 0;
-                                            reply[3] = 0;
-                                        } else {
-
-                                            // utf32 string size in bytes
-                                            size = (len+1)*4; // +1 = tailing zeros
-
-                                            // + length (4 bytes) + id (1 byte)
-                                            reply_size = size + 5;
-
-                                            reply = malloc(reply_size);
-
-                                            // 'convert' to utf32
-                                            for (int i=0;i<len*4;i+=4) {
-                                                memcpy(reply + i, ClipText + i/4, 2);
-                                                reply[i+2] = 0;
-                                                reply[i+3] = 0;
-                                            }
-                                            // zero terminate
-                                            reply[len*4] = 0;
-                                            reply[len*4+1] = 0;
-                                            reply[len*4+2] = 0;
-                                            reply[len*4+3] = 0;
-
-                                            // set size
-                                            memcpy(reply + (len+1)*4, &size, sizeof(uint32_t));
-                                        }
+                                        // set size
+                                        memcpy(reply + ClipTextSize, &ClipTextSize, sizeof(ClipTextSize));
                                     }
 
                                     free(ClipText);
 
                                     #else
                                     reply_size = 5;
-                                    reply = malloc(reply_size);
-
-                                    reply[0] = 0;
-                                    reply[1] = 0;
-                                    reply[2] = 0;
-                                    reply[3] = 0;
+                                    reply = calloc(1, reply_size);
                                     #endif
 
                                 } else {
@@ -3234,12 +3219,7 @@ static void do_osc(Terminal *term)
                                     // anyway, mimic empty clipboard
 
                                     reply_size = 5;
-                                    reply = malloc(reply_size);
-
-                                    reply[0] = 0;
-                                    reply[1] = 0;
-                                    reply[2] = 0;
-                                    reply[3] = 0;
+                                    reply = calloc(1, reply_size);
                                 }
 
                                 break;
