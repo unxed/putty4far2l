@@ -2798,8 +2798,8 @@ static void do_osc(Terminal *term)
 
             } else if (strncmp(term->osc_string+5, ":", 1) == 0) {
 
-            	base64_decodestate _d_state;
-        		base64_init_decodestate(&_d_state);
+                base64_decodestate _d_state;
+                        base64_init_decodestate(&_d_state);
                 char* d_out = malloc(term->osc_strlen);
                 int d_count = base64_decode_block(term->osc_string+6, term->osc_strlen-6, d_out, &_d_state);
 
@@ -3054,44 +3054,45 @@ static void do_osc(Terminal *term)
                                         len = d_count - 3 - 4 - 4;
 
                                     if (fmt == CF_TEXT) {
-                                      int cnt = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len, NULL, 0);
-                                      if (cnt > 0) {
-                                        buffer = calloc(cnt + 1, sizeof(wchar_t));
-                                        MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len, (PWCHAR)buffer, cnt);
-                                      }
-                                      fmt = CF_UNICODETEXT;
+                                        int cnt = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len, NULL, 0);
+                                        if (cnt > 0) {
+                                            buffer = calloc(cnt + 1, sizeof(wchar_t));
+                                            MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len, (PWCHAR)buffer, cnt);
+                                        }
+                                        fmt = CF_UNICODETEXT;
 
                                     } else if (fmt == CF_UNICODETEXT || fmt >= 0xC000) {
-                                      // very stupid utf32->utf16 'conversion'
-                                      buffer = calloc((len / sizeof(uint32_t)) + 1, sizeof(wchar_t));
-                                      for (int i=0; i < len / sizeof(uint32_t); ++i) {
-                                          memcpy(&buffer[i * sizeof(wchar_t)], &d_out[i * sizeof(uint32_t)], sizeof(wchar_t));
-                                      }
+                                        // very stupid utf32->utf16 'conversion'
+                                        buffer = calloc((len / sizeof(uint32_t)) + 1, sizeof(wchar_t));
+                                        for (int i=0; i < len / sizeof(uint32_t); ++i) {
+                                            memcpy(
+                                                &buffer[i * sizeof(wchar_t)],
+                                                &d_out[i * sizeof(uint32_t)],
+                                                sizeof(wchar_t)
+                                            );
+                                        }
                                     }
 
+                                    int BufferSize = buffer ? (wcslen((PWCHAR)buffer) + 1) * sizeof(wchar_t) : 0;
 
-
-                                        int BufferSize = buffer ? (wcslen((PWCHAR)buffer) + 1) * sizeof(wchar_t) : 0;
                                     // clipboard stuff itself
 
-                                	HGLOBAL hData;
-                            		void *GData;
+                                    HGLOBAL hData;
+                                    void *GData;
 
                                     bool set_successful = 0;
 
-                            		if (buffer && (hData=GlobalAlloc(GMEM_MOVEABLE,BufferSize)))
-                            		{
-                            			if ((GData=GlobalLock(hData)))
-                            			{
-                            				memcpy(GData,buffer,BufferSize);
-                            				GlobalUnlock(hData);
+                                    if (buffer && (hData=GlobalAlloc(GMEM_MOVEABLE,BufferSize))) {
+
+                                        if ((GData=GlobalLock(hData))) {
+
+                                            memcpy(GData,buffer,BufferSize);
+                                            GlobalUnlock(hData);
 
                                             if (OpenClipboard(hwnd)) {
 
                                                 if (!SetClipboardData(fmt, (HANDLE)hData)) {
-
-                                					GlobalFree(hData);
-
+                                                    GlobalFree(hData);
                                                 } else {
                                                     set_successful = 1;
                                                 }
@@ -3099,15 +3100,13 @@ static void do_osc(Terminal *term)
                                                 CloseClipboard();
 
                                             } else {
-
-                            					GlobalFree(hData);
+                                                GlobalFree(hData);
                                             }
 
-                            			} else {
-
-                            				GlobalFree(hData);
-                            			}
-                            		}
+                                        } else {
+                                            GlobalFree(hData);
+                                        }
+                                    }
 
                                     free(buffer);
 
@@ -3148,42 +3147,67 @@ static void do_osc(Terminal *term)
                                     void *ClipText = NULL;
                                     int32_t ClipTextSize = 0;
 
-                                    if ( (gfmt == CF_TEXT || gfmt == CF_UNICODETEXT || gfmt >= 0xC000) && OpenClipboard(hwnd)) {
-					HANDLE hClipData = GetClipboardData((gfmt == CF_TEXT) ? CF_UNICODETEXT : gfmt);
+                                    if ((gfmt == CF_TEXT || gfmt == CF_UNICODETEXT || gfmt >= 0xC000) &&
+                                        OpenClipboard(hwnd))
+                                    {
+                                        HANDLE hClipData = GetClipboardData((gfmt == CF_TEXT) ? CF_UNICODETEXT : gfmt);
 
-                                	if (hClipData)
-                                	{
-                                		void *pClipData=GlobalLock(hClipData);
+                                        if (hClipData)
+                                        {
+                                            void *pClipData=GlobalLock(hClipData);
 
-                                		if (pClipData)
-                                		{
-							size_t n = wcsnlen((wchar_t *)pClipData, GlobalSize(hClipData) / sizeof(wchar_t));
+                                            if (pClipData)
+                                            {
+                                                size_t n = wcsnlen(
+                                                    (wchar_t *)pClipData,
+                                                    GlobalSize(hClipData) / sizeof(wchar_t)
+                                                );
 
-                                			if (gfmt == CF_TEXT) {
-								ClipTextSize = WideCharToMultiByte(CP_UTF8, 0, (wchar_t *)pClipData, n, NULL, 0, NULL, NULL) + 1;
-								if (ClipTextSize >= 0) {
-									ClipText = calloc(ClipTextSize + 1, 1);
-									if (ClipText) {
-										WideCharToMultiByte(CP_UTF8, 0, (wchar_t *)pClipData, n, (char *)ClipText, ClipTextSize, NULL, NULL);
-										ClipTextSize = strlen((char *)ClipText) + 1;
-									}
-								}
+                                                if (gfmt == CF_TEXT) {
 
-                                			} else {
-								ClipText = calloc((n + 1), sizeof(uint32_t));
-								if (ClipText) {
-									for (size_t i = 0; i < n; ++i) {
-										((uint32_t *)ClipText)[i] = ((uint16_t *)pClipData)[i];
-									}
-									ClipTextSize = (n + 1) * sizeof(uint32_t);
-								}
+                                                    ClipTextSize = WideCharToMultiByte(
+                                                        CP_UTF8,
+                                                        0,
+                                                        (wchar_t *)pClipData,
+                                                        n,
+                                                        NULL,
+                                                        0,
+                                                        NULL,
+                                                        NULL
+                                                    ) + 1;
+
+                                                    if (ClipTextSize >= 0) {
+                                                        ClipText = calloc(ClipTextSize + 1, 1);
+                                                        if (ClipText) {
+                                                            WideCharToMultiByte(
+                                                                CP_UTF8,
+                                                                0,
+                                                                (wchar_t *)pClipData,
+                                                                n,
+                                                                (char *)ClipText,
+                                                                ClipTextSize,
+                                                                NULL,
+                                                                NULL
+                                                            );
+                                                            ClipTextSize = strlen((char *)ClipText) + 1;
                                                         }
+                                                    }
 
-                                			GlobalUnlock(hClipData);
-                                		}
+                                                } else {
+                                                    ClipText = calloc((n + 1), sizeof(uint32_t));
+                                                    if (ClipText) {
+                                                        for (size_t i = 0; i < n; ++i) {
+                                                            ((uint32_t *)ClipText)[i] = ((uint16_t *)pClipData)[i];
+                                                        }
+                                                        ClipTextSize = (n + 1) * sizeof(uint32_t);
+                                                    }
+                                                }
 
-                                	} else {
-                                        // todo: process errors
+                                                GlobalUnlock(hClipData);
+                                            }
+
+                                        } else {
+                                            // todo: process errors
                                         }
                                        CloseClipboard();
                                     }
@@ -3257,7 +3281,7 @@ static void do_osc(Terminal *term)
 
                     // base64-encode
                     // result in null-terminated char* out
-                	base64_encodestate _state;
+                        base64_encodestate _state;
                     base64_init_encodestate(&_state);
 
                     char* out = malloc(reply_size*2);
@@ -3265,19 +3289,19 @@ static void do_osc(Terminal *term)
                     // finishing '=' characters
                     char* next_char = out + count;
                     switch (_state.step)
-                	{
-                	case step_B:
-                		*next_char++ = base64_encode_value(_state.result);
-                		*next_char++ = '=';
-                		*next_char++ = '=';
-                		break;
-                	case step_C:
-                		*next_char++ = base64_encode_value(_state.result);
-                		*next_char++ = '=';
-                		break;
-                	case step_A:
+                        {
+                        case step_B:
+                                *next_char++ = base64_encode_value(_state.result);
+                                *next_char++ = '=';
+                                *next_char++ = '=';
+                                break;
+                        case step_C:
+                                *next_char++ = base64_encode_value(_state.result);
+                                *next_char++ = '=';
+                                break;
+                        case step_A:
                         break;
-                	}
+                        }
                     count = next_char - out;
                     out[count] = 0;
 
