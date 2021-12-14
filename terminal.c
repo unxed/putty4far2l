@@ -3209,7 +3209,7 @@ static void do_osc(Terminal *term)
                                         } else {
                                             // todo: process errors
                                         }
-                                       CloseClipboard();
+                                        CloseClipboard();
                                     }
 
 
