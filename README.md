@@ -30,6 +30,7 @@ cd putty4far2l/windows
 - Сделать формат буфера обмена FAR_VerticalBlock_Unicode совместимым с Far for Windows (если возможно)
 - Выделять буфер APC динамически (сейчас лимит объема загружаемого с сервера буфера обмена ~680Кб)
 - Добавить поддержку других типов запросов (события мышки, уведомления etc)
+- Добавить поддержку escape последовательностей управления формой курсора
 - Отображать псевдографику без сглаживания (или можно использовать шрифт [Consolas](https://en.wikipedia.org/wiki/Consolas) на Windows :)
 
 Вся остальная информация - в оригинальном [PuTTY README](https://github.com/unxed/putty4far2l/blob/master/README).
@@ -66,6 +67,7 @@ Things that can be made better (I have no concrete plans on it all, though):
 - FAR_VerticalBlock_Unicode clipboard format interoperability with Windows Far (if possible)
 - Dynamic APC buffer allocation (current clipboard size download limit is ~680Kb)
 - Other requests implementation (mouse, notifications, etc)
+- Add cursor shape escape sequences support
 - Display line drawing characters with antialiasing disabled (or just use [Consolas](https://en.wikipedia.org/wiki/Consolas) font on Windows :)
 
 For additional stuff see original [PuTTY README](https://github.com/unxed/putty4far2l/blob/master/README).
