@@ -3046,6 +3046,7 @@ static void do_osc(Terminal *term)
                                     //DWORD fmt = (DWORD)d_out[d_count-3-4];
                                     uint32_t fmt;
                                     char* buffer = NULL;
+                                    int BufferSize = 0;
                                     memcpy(&fmt, d_out + d_count - 3 - 4, sizeof(uint32_t));
 
                                     // id, 'c', 's', 4-byte fmt, next goes 4-byte len
@@ -3060,8 +3061,9 @@ static void do_osc(Terminal *term)
                                             MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len, (PWCHAR)buffer, cnt);
                                         }
                                         fmt = CF_UNICODETEXT;
+                                        BufferSize = (wcslen((PWCHAR)buffer) + 1) * sizeof(WCHAR);
 
-                                    } else if (fmt == CF_UNICODETEXT || fmt >= 0xC000) {
+                                    } else if (fmt == CF_UNICODETEXT) {
                                         // very stupid utf32->utf16 'conversion'
                                         buffer = calloc((len / sizeof(uint32_t)) + 1, sizeof(wchar_t));
                                         for (int i=0; i < len / sizeof(uint32_t); ++i) {
@@ -3071,9 +3073,14 @@ static void do_osc(Terminal *term)
                                                 sizeof(wchar_t)
                                             );
                                         }
-                                    }
+                                        BufferSize = (wcslen((PWCHAR)buffer) + 1) * sizeof(WCHAR);
 
-                                    int BufferSize = buffer ? (wcslen((PWCHAR)buffer) + 1) * sizeof(wchar_t) : 0;
+                                    } else if (fmt >= 0xC000) {
+                                        // no transcoding - copy it as is
+                                        buffer = malloc(len);
+                                        memcpy(buffer, &d_out[0], len);
+                                        BufferSize = len;
+                                    }
 
                                     // clipboard stuff itself
 
@@ -3158,10 +3165,7 @@ static void do_osc(Terminal *term)
 
                                             if (pClipData)
                                             {
-                                                size_t n = wcsnlen(
-                                                    (wchar_t *)pClipData,
-                                                    GlobalSize(hClipData) / sizeof(wchar_t)
-                                                );
+                                                size_t n = GlobalSize(hClipData);
 
                                                 if (gfmt == CF_TEXT) {
 
@@ -3177,6 +3181,7 @@ static void do_osc(Terminal *term)
                                                     ) + 1;
 
                                                     if (ClipTextSize >= 0) {
+                                                        n = wcsnlen((wchar_t *)pClipData, n / sizeof(wchar_t));
                                                         ClipText = calloc(ClipTextSize + 1, 1);
                                                         if (ClipText) {
                                                             WideCharToMultiByte(
@@ -3193,13 +3198,21 @@ static void do_osc(Terminal *term)
                                                         }
                                                     }
 
-                                                } else {
+                                                } else  if (gfmt == CF_UNICODETEXT) {
+                                                    n = wcsnlen((wchar_t *)pClipData, n / sizeof(wchar_t));
                                                     ClipText = calloc((n + 1), sizeof(uint32_t));
                                                     if (ClipText) {
                                                         for (size_t i = 0; i < n; ++i) {
                                                             ((uint32_t *)ClipText)[i] = ((uint16_t *)pClipData)[i];
                                                         }
                                                         ClipTextSize = (n + 1) * sizeof(uint32_t);
+                                                    }
+
+                                                } else {
+                                                    ClipText = malloc(n);
+                                                    if (ClipText) {
+                                                        memcpy(ClipText, pClipData, n);
+                                                        ClipTextSize = n;
                                                     }
                                                 }
 
