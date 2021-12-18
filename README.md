@@ -27,7 +27,6 @@ cd putty4far2l/windows
 Штуки, которые можно улучшить (конкретных планов по ним, впрочем, у меня нет):
 - Лучше обрабатывать ошибки
 - Доработать поддержку буфера обмена (запоминать разрешения доступа для конкретных клиентов)
-- Сделать формат буфера обмена FAR_VerticalBlock_Unicode совместимым с Far for Windows (если возможно)
 - Выделять буфер APC динамически (сейчас лимит объема загружаемого с сервера буфера обмена ~680Кб)
 - Добавить поддержку других типов запросов (события мышки, уведомления etc)
 - Добавить поддержку escape последовательностей управления формой курсора
@@ -64,7 +63,6 @@ If you plan to build PuTTY on Linux and test in wine (as do I), you may need to 
 Things that can be made better (I have no concrete plans on it all, though):
 - Better errors processing
 - Better clipboard support (option to allow sync permanently for specific clients)
-- FAR_VerticalBlock_Unicode clipboard format interoperability with Windows Far (if possible)
 - Dynamic APC buffer allocation (current clipboard size download limit is ~680Kb)
 - Other requests implementation (mouse, notifications, etc)
 - Add cursor shape escape sequences support
