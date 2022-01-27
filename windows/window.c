@@ -11,8 +11,8 @@
 #include <assert.h>
 
 /* far2l base64 */
-#include <../far2l/cencode.h>
-#include <../far2l/cdecode.h>
+#include <../b64/cencode.h>
+#include <../b64/cdecode.h>
 
 #ifdef __WINE__
 #define NO_MULTIMON                    /* winelib doesn't have this */
@@ -3332,32 +3332,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             */
 
             // base64-encode kev
-            // result in null-terminated char* out
         	base64_encodestate _state;
             base64_init_encodestate(&_state);
             char* out = malloc(15*2);
             int count = base64_encode_block(kev, 15, out, &_state);
-            // finishing '=' characters
-            char* next_char = out + count;
-            switch (_state.step)
-        	{
-        	case step_B:
-        		*next_char++ = base64_encode_value(_state.result);
-        		*next_char++ = '=';
-        		*next_char++ = '=';
-        		break;
-        	case step_C:
-        		*next_char++ = base64_encode_value(_state.result);
-        		*next_char++ = '=';
-        		break;
-            case step_A:
-                break;
-        	}
-            count = next_char - out;
-            out[count] = 0;
+		    count += base64_encode_blockend(out + count, &_state);
 
             /*
-            f = fopen("putty.log", "a");
+            out[count] = 0; // null-terminate
+            FILE* f = fopen("putty.log", "a");
             fprintf(f, "count: %d, b64: %s\n", count, out);
             fclose(f);
             */

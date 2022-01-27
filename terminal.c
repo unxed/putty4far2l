@@ -13,9 +13,9 @@
 #include "putty.h"
 #include "terminal.h"
 
-/* far2l base64 */
-#include <far2l/cencode.h>
-#include <far2l/cdecode.h>
+/* base64 for far2l */
+#include <b64/cencode.h>
+#include <b64/cdecode.h>
 
 #define VT52_PLUS
 
@@ -3161,9 +3161,10 @@ static void do_osc(Terminal *term)
             } else if (strncmp(term->osc_string+5, ":", 1) == 0) {
 
                 base64_decodestate _d_state;
-                        base64_init_decodestate(&_d_state);
+                base64_init_decodestate(&_d_state);
                 char* d_out = malloc(term->osc_strlen);
-                int d_count = base64_decode_block(term->osc_string+6, term->osc_strlen-6, d_out, &_d_state);
+                int d_count = base64_decode_block(
+                    term->osc_string+6, term->osc_strlen-6, d_out, &_d_state);
 
                 // last byte is id
                 BYTE id = d_out[d_count-1];
@@ -3655,30 +3656,11 @@ static void do_osc(Terminal *term)
                     // ok, let us try to answer something
 
                     // base64-encode
-                    // result in null-terminated char* out
-                        base64_encodestate _state;
+                    base64_encodestate _state;
                     base64_init_encodestate(&_state);
-
                     char* out = malloc(reply_size*2);
-                    int count = base64_encode_block((char*)reply, reply_size, out, &_state);
-                    // finishing '=' characters
-                    char* next_char = out + count;
-                    switch (_state.step)
-                        {
-                        case step_B:
-                                *next_char++ = base64_encode_value(_state.result);
-                                *next_char++ = '=';
-                                *next_char++ = '=';
-                                break;
-                        case step_C:
-                                *next_char++ = base64_encode_value(_state.result);
-                                *next_char++ = '=';
-                                break;
-                        case step_A:
-                        break;
-                        }
-                    count = next_char - out;
-                    out[count] = 0;
+		            int count = base64_encode_block((char*)reply, reply_size, out, &_state);
+        		    count += base64_encode_blockend(out + count, &_state);
 
                     // send escape seq
 
@@ -3687,14 +3669,11 @@ static void do_osc(Terminal *term)
 
                     backend_send(term->backend, out, count);
 
-                    /*
                     // log string we sent
-                    FILE *f; f = fopen("putty.log", "a");
-                    fprintf(f, "send: [");
-                    for(int i=0;i<count;i++) {
-                        fprintf(f, "%c",out[i]);
-                    }
-                    fprintf(f, "]\n");
+                    /*
+                    out[count] = 0; // null-terminate
+                    FILE* f = fopen("putty.log", "a");
+                    fprintf(f, "count: %d, b64: %s\n", count, out);
                     fclose(f);
                     */
 

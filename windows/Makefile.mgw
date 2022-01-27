@@ -399,11 +399,11 @@ testcrypt.exe: ecc.o marshal.o memory.o millerrabin.o mpint.o mpunsafe.o \
 		sshpubk.o sshrsa.o sshrsag.o sshsh256.o sshsh512.o sshsha.o \
 		sshsha3.o testcrypt.o tree234.o utils.o winmiscs.o 
 
-cencode.o: ../far2l/cencode.c
-	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../far2l/cencode.c -I../far2l
+cencode.o: ../b64/cencode.c
+	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../b64/cencode.c -I../b64
 
-cdecode.o: ../far2l/cencode.c
-	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../far2l/cdecode.c -I../far2l
+cdecode.o: ../b64/cencode.c
+	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../b64/cdecode.c -I../b64
 
 agentf.o: ../agentf.c ../putty.h ../ssh.h ../pageant.h ../sshchan.h \
 		../defs.h ../puttyps.h ../network.h ../misc.h ../marshal.h \
