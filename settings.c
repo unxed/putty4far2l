@@ -39,6 +39,7 @@ static const struct keyvalwhere kexnames[] = {
 
 static const struct keyvalwhere hknames[] = {
     { "ed25519",    HK_ED25519,             -1, +1 },
+    { "ed448",      HK_ED448,               -1, +1 },
     { "ecdsa",      HK_ECDSA,               -1, -1 },
     { "dsa",        HK_DSA,                 -1, -1 },
     { "rsa",        HK_RSA,                 -1, -1 },
@@ -69,6 +70,10 @@ const char *const ttymodes[] = {
     "CS7",      "CS8",      "PARENB",   "PARODD",   NULL
 };
 
+static int default_protocol, default_port;
+void settings_set_default_protocol(int newval) { default_protocol = newval; }
+void settings_set_default_port(int newval) { default_port = newval; }
+
 /*
  * Convenience functions to access the backends[] array
  * (which is only present in tools that manage settings).
@@ -78,7 +83,7 @@ const struct BackendVtable *backend_vt_from_name(const char *name)
 {
     const struct BackendVtable *const *p;
     for (p = backends; *p != NULL; p++)
-        if (!strcmp((*p)->name, name))
+        if (!strcmp((*p)->id, name))
             return *p;
     return NULL;
 }
@@ -488,14 +493,12 @@ static void write_clip_setting(settings_w *sesskey, const char *savekey,
       case CLIPUI_EXPLICIT:
         write_setting_s(sesskey, savekey, "explicit");
         break;
-      case CLIPUI_CUSTOM:
-        {
-            char *sval = dupcat("custom:", conf_get_str(conf, strconfkey),
-                                (const char *)NULL);
-            write_setting_s(sesskey, savekey, sval);
-            sfree(sval);
-        }
+      case CLIPUI_CUSTOM: {
+        char *sval = dupcat("custom:", conf_get_str(conf, strconfkey));
+        write_setting_s(sesskey, savekey, sval);
+        sfree(sval);
         break;
+      }
     }
 }
 
@@ -554,7 +557,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
         const struct BackendVtable *vt =
             backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
         if (vt)
-            p = vt->name;
+            p = vt->id;
     }
     write_setting_s(sesskey, "Protocol", p);
     write_setting_i(sesskey, "PortNumber", conf_get_int(conf, CONF_port));
@@ -599,12 +602,14 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX, conf, CONF_ssh_cipherlist);
     wprefs(sesskey, "KEX", kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
     wprefs(sesskey, "HostKey", hknames, HK_MAX, conf, CONF_ssh_hklist);
+    write_setting_b(sesskey, "PreferKnownHostKeys", conf_get_bool(conf, CONF_ssh_prefer_known_hostkeys));
     write_setting_i(sesskey, "RekeyTime", conf_get_int(conf, CONF_ssh_rekey_time));
 #ifndef NO_GSSAPI
     write_setting_i(sesskey, "GssapiRekey", conf_get_int(conf, CONF_gssapirekey));
 #endif
     write_setting_s(sesskey, "RekeyBytes", conf_get_str(conf, CONF_ssh_rekey_data));
     write_setting_b(sesskey, "SshNoAuth", conf_get_bool(conf, CONF_ssh_no_userauth));
+    write_setting_b(sesskey, "SshNoTrivialAuth", conf_get_bool(conf, CONF_ssh_no_trivial_userauth));
     write_setting_b(sesskey, "SshBanner", conf_get_bool(conf, CONF_ssh_show_banner));
     write_setting_b(sesskey, "AuthTIS", conf_get_bool(conf, CONF_try_tis_auth));
     write_setting_b(sesskey, "AuthKI", conf_get_bool(conf, CONF_try_ki_auth));
@@ -783,6 +788,14 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_b(sesskey, "ConnectionSharingUpstream", conf_get_bool(conf, CONF_ssh_connection_sharing_upstream));
     write_setting_b(sesskey, "ConnectionSharingDownstream", conf_get_bool(conf, CONF_ssh_connection_sharing_downstream));
     wmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys, false);
+
+    /*
+     * SUPDUP settings
+     */
+    write_setting_s(sesskey, "SUPDUPLocation", conf_get_str(conf, CONF_supdup_location));
+    write_setting_i(sesskey, "SUPDUPCharset", conf_get_int(conf, CONF_supdup_ascii_set));
+    write_setting_b(sesskey, "SUPDUPMoreProcessing", conf_get_bool(conf, CONF_supdup_more));
+    write_setting_b(sesskey, "SUPDUPScrolling", conf_get_bool(conf, CONF_supdup_scroll));
 }
 
 bool load_settings(const char *section, Conf *conf)
@@ -995,6 +1008,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     }
     gprefs(sesskey, "HostKey", "ed25519,ecdsa,rsa,dsa,WARN",
            hknames, HK_MAX, conf, CONF_ssh_hklist);
+    gppb(sesskey, "PreferKnownHostKeys", true, conf, CONF_ssh_prefer_known_hostkeys);
     gppi(sesskey, "RekeyTime", 60, conf, CONF_ssh_rekey_time);
 #ifndef NO_GSSAPI
     gppi(sesskey, "GssapiRekey", GSS_DEF_REKEY_MINS, conf, CONF_gssapirekey);
@@ -1012,6 +1026,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gpps(sesskey, "LogHost", "", conf, CONF_loghost);
     gppb(sesskey, "SSH2DES", false, conf, CONF_ssh2_des_cbc);
     gppb(sesskey, "SshNoAuth", false, conf, CONF_ssh_no_userauth);
+    gppb(sesskey, "SshNoTrivialAuth", false, conf, CONF_ssh_no_trivial_userauth);
     gppb(sesskey, "SshBanner", true, conf, CONF_ssh_show_banner);
     gppb(sesskey, "AuthTIS", false, conf, CONF_try_tis_auth);
     gppb(sesskey, "AuthKI", true, conf, CONF_try_ki_auth);
@@ -1073,6 +1088,8 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "HideMousePtr", false, conf, CONF_hide_mouseptr);
     gppb(sesskey, "SunkenEdge", false, conf, CONF_sunken_edge);
     gppi(sesskey, "WindowBorder", 1, conf, CONF_window_border);
+    //gppi(sesskey, "CurType", 0, conf, CONF_cursor_type);
+    //gppb(sesskey, "BlinkCur", false, conf, CONF_blink_cur);
     gppi(sesskey, "CurType", 1, conf, CONF_cursor_type);
     gppb(sesskey, "BlinkCur", true, conf, CONF_blink_cur);
     /* pedantic compiler tells me I can't use conf, CONF_beep as an int * :-) */
@@ -1252,6 +1269,14 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "ConnectionSharingDownstream", true,
          conf, CONF_ssh_connection_sharing_downstream);
     gppmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys);
+
+    /*
+     * SUPDUP settings
+     */
+    gpps(sesskey, "SUPDUPLocation", "The Internet", conf, CONF_supdup_location);
+    gppi(sesskey, "SUPDUPCharset", false, conf, CONF_supdup_ascii_set);
+    gppb(sesskey, "SUPDUPMoreProcessing", false, conf, CONF_supdup_more);
+    gppb(sesskey, "SUPDUPScrolling", false, conf, CONF_supdup_scroll);
 }
 
 bool do_defaults(const char *session, Conf *conf)

@@ -8,7 +8,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#define PUTTY_DO_GLOBALS
 #include "putty.h"
 #include "psftp.h"
 #include "storage.h"
@@ -32,11 +31,11 @@ static void do_sftp_cleanup(void);
  * sftp client state.
  */
 
-char *pwd, *homedir;
+static char *pwd, *homedir;
 static LogContext *psftp_logctx = NULL;
 static Backend *backend;
-Conf *conf;
-bool sent_eof = false;
+static Conf *conf;
+static bool sent_eof = false;
 
 /* ------------------------------------------------------------
  * Seat vtable.
@@ -46,24 +45,27 @@ static size_t psftp_output(Seat *, bool is_stderr, const void *, size_t);
 static bool psftp_eof(Seat *);
 
 static const SeatVtable psftp_seat_vt = {
-    psftp_output,
-    psftp_eof,
-    filexfer_get_userpass_input,
-    nullseat_notify_remote_exit,
-    console_connection_fatal,
-    nullseat_update_specials_menu,
-    nullseat_get_ttymode,
-    nullseat_set_busy_status,
-    console_verify_ssh_host_key,
-    console_confirm_weak_crypto_primitive,
-    console_confirm_weak_cached_hostkey,
-    nullseat_is_never_utf8,
-    nullseat_echoedit_update,
-    nullseat_get_x_display,
-    nullseat_get_windowid,
-    nullseat_get_window_pixel_size,
-    console_stripctrl_new,
-    nullseat_set_trust_status_vacuously,
+    .output = psftp_output,
+    .eof = psftp_eof,
+    .get_userpass_input = filexfer_get_userpass_input,
+    .notify_remote_exit = nullseat_notify_remote_exit,
+    .connection_fatal = console_connection_fatal,
+    .update_specials_menu = nullseat_update_specials_menu,
+    .get_ttymode = nullseat_get_ttymode,
+    .set_busy_status = nullseat_set_busy_status,
+    .verify_ssh_host_key = console_verify_ssh_host_key,
+    .confirm_weak_crypto_primitive = console_confirm_weak_crypto_primitive,
+    .confirm_weak_cached_hostkey = console_confirm_weak_cached_hostkey,
+    .is_utf8 = nullseat_is_never_utf8,
+    .echoedit_update = nullseat_echoedit_update,
+    .get_x_display = nullseat_get_x_display,
+    .get_windowid = nullseat_get_windowid,
+    .get_window_pixel_size = nullseat_get_window_pixel_size,
+    .stripctrl_new = console_stripctrl_new,
+    .set_trust_status = nullseat_set_trust_status_vacuously,
+    .verbose = cmdline_seat_verbose,
+    .interactive = nullseat_interactive_yes,
+    .get_cursor_position = nullseat_get_cursor_position,
 };
 static Seat psftp_seat[1] = {{ &psftp_seat_vt }};
 
@@ -124,7 +126,7 @@ char *canonify(const char *name)
             slash = "";
         else
             slash = "/";
-        fullname = dupcat(pwd, slash, name, NULL);
+        fullname = dupcat(pwd, slash, name);
     }
 
     req = fxp_realpath_send(fullname);
@@ -203,8 +205,8 @@ char *canonify(const char *name)
          * component. Concatenate the last component and return.
          */
         returnname = dupcat(canonname,
-                            canonname[strlen(canonname) - 1] ==
-                            '/' ? "" : "/", fullname + i + 1, NULL);
+                            (strendswith(canonname, "/") ? "" : "/"),
+                            fullname + i + 1);
         sfree(fullname);
         sfree(canonname);
         return returnname;
@@ -376,7 +378,7 @@ bool sftp_get_file(char *fname, char *outfname, bool recurse, bool restart)
                 char *nextfname, *nextoutfname;
                 bool retd;
 
-                nextfname = dupcat(fname, "/", ournames[i]->filename, NULL);
+                nextfname = dupcat(fname, "/", ournames[i]->filename);
                 nextoutfname = dir_file_cat(outfname, ournames[i]->filename);
                 retd = sftp_get_file(
                     nextfname, nextoutfname, recurse, restart);
@@ -601,7 +603,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
         if (restart) {
             while (i < nnames) {
                 char *nextoutfname;
-                nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
+                nextoutfname = dupcat(outfname, "/", ournames[i]);
                 req = fxp_stat_send(nextoutfname);
                 pktin = sftp_wait_for_reply(req);
                 result = fxp_stat_recv(pktin, req, &attrs);
@@ -625,7 +627,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
             bool retd;
 
             nextfname = dir_file_cat(fname, ournames[i]);
-            nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
+            nextoutfname = dupcat(outfname, "/", ournames[i]);
             retd = sftp_put_file(nextfname, nextoutfname, recurse, restart);
             restart = false;           /* after first partial file, do full */
             sfree(nextoutfname);
@@ -722,6 +724,16 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
             } else {
                 xfer_upload_data(xfer, buffer, len);
             }
+        }
+
+        if (toplevel_callback_pending() && !err && !eof) {
+            /* If we have pending callbacks, they might make
+             * xfer_upload_ready start to return true. So we should
+             * run them and then re-check xfer_upload_ready, before
+             * we go as far as waiting for an entire packet to
+             * arrive. */
+            run_toplevel_callbacks();
+            continue;
         }
 
         if (!xfer_done(xfer)) {
@@ -1557,7 +1569,7 @@ static bool sftp_action_mv(void *vctx, char *srcfname)
 
         p = srcfname + strlen(srcfname);
         while (p > srcfname && p[-1] != '/') p--;
-        newname = dupcat(ctx->dstfname, "/", p, NULL);
+        newname = dupcat(ctx->dstfname, "/", p);
         newcanon = canonify(newname);
         sfree(newname);
 
@@ -1588,7 +1600,7 @@ static bool sftp_action_mv(void *vctx, char *srcfname)
 
 int sftp_cmd_mv(struct sftp_command *cmd)
 {
-    struct sftp_context_mv actx, *ctx = &actx;
+    struct sftp_context_mv ctx[1];
     int i, ret;
 
     if (!backend) {
@@ -1677,7 +1689,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 {
     char *mode;
     int i, ret;
-    struct sftp_context_chmod actx, *ctx = &actx;
+    struct sftp_context_chmod ctx[1];
 
     if (!backend) {
         not_connected();
@@ -2306,6 +2318,16 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     return cmd;
 }
 
+static void sftp_cmd_free(struct sftp_command *cmd)
+{
+    if (cmd->words) {
+        for (size_t i = 0; i < cmd->nwords; i++)
+            sfree(cmd->words[i]);
+        sfree(cmd->words);
+    }
+    sfree(cmd);
+}
+
 static int do_sftp_init(void)
 {
     struct sftp_packet *pktin;
@@ -2380,13 +2402,7 @@ int do_sftp(int mode, int modeflags, char *batchfile)
             if (!cmd)
                 break;
             ret = cmd->obey(cmd);
-            if (cmd->words) {
-                int i;
-                for(i = 0; i < cmd->nwords; i++)
-                    sfree(cmd->words[i]);
-                sfree(cmd->words);
-            }
-            sfree(cmd);
+            sftp_cmd_free(cmd);
             if (ret < 0)
                 break;
         }
@@ -2403,6 +2419,7 @@ int do_sftp(int mode, int modeflags, char *batchfile)
             if (!cmd)
                 break;
             ret = cmd->obey(cmd);
+            sftp_cmd_free(cmd);
             if (ret < 0)
                 break;
             if (ret == 0) {
@@ -2427,12 +2444,6 @@ int do_sftp(int mode, int modeflags, char *batchfile)
 static bool verbose = false;
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
-
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len)
-{
-    unreachable("all PSFTP agent requests should be synchronous");
-}
 
 /*
  * Receive a block of data from the SSH link. Block until all data
@@ -2520,12 +2531,16 @@ static void usage(void)
     printf("  -P port   connect to specified port\n");
     printf("  -pw passw login with specified password\n");
     printf("  -1 -2     force use of particular SSH protocol version\n");
+    printf("  -ssh -ssh-connection\n");
+    printf("            force use of particular SSH protocol variant\n");
     printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for user authentication\n");
     printf("  -noagent  disable use of Pageant\n");
     printf("  -agent    enable use of Pageant\n");
-    printf("  -hostkey aa:bb:cc:...\n");
+    printf("  -no-trivial-auth\n");
+    printf("            disconnect if SSH authentication succeeds trivially\n");
+    printf("  -hostkey keyid\n");
     printf("            manually specify a host key (may be repeated)\n");
     printf("  -batch    disable all interactive prompts\n");
     printf("  -no-sanitise-stderr  don't strip control chars from"
@@ -2535,6 +2550,9 @@ static void usage(void)
     printf("  -sshlog file\n");
     printf("  -sshrawlog file\n");
     printf("            log protocol details to a file\n");
+    printf("  -logoverwrite\n");
+    printf("  -logappend\n");
+    printf("            control what happens when a log file already exists\n");
     cleanup_exit(1);
 }
 
@@ -2572,7 +2590,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
      * If we haven't loaded session details already (e.g., from -load),
      * try looking for a session called "host".
      */
-    if (!loaded_session) {
+    if (!cmdline_loaded_session()) {
         /* Try to load settings for `host' into a temporary config */
         Conf *conf2 = conf_new();
         conf_set_str(conf2, CONF_host, "");
@@ -2593,10 +2611,12 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     }
 
     /*
-     * Force use of SSH. (If they got the protocol wrong we assume the
-     * port is useless too.)
+     * Force protocol to SSH if the user has somehow contrived to
+     * select one we don't support (e.g. by loading an inappropriate
+     * saved session). In that situation we assume the port number is
+     * useless too.)
      */
-    if (conf_get_int(conf, CONF_protocol) != PROT_SSH) {
+    if (!backend_vt_from_proto(conf_get_int(conf, CONF_protocol))) {
         conf_set_int(conf, CONF_protocol, PROT_SSH);
         conf_set_int(conf, CONF_port, 22);
     }
@@ -2709,11 +2729,13 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
                  "exec sftp-server");
     conf_set_bool(conf, CONF_ssh_subsys2, false);
 
-    psftp_logctx = log_init(default_logpolicy, conf);
+    psftp_logctx = log_init(console_cli_logpolicy, conf);
 
-    platform_psftp_pre_conn_setup();
+    platform_psftp_pre_conn_setup(console_cli_logpolicy);
 
-    err = backend_init(&ssh_backend, psftp_seat, &backend, psftp_logctx, conf,
+    err = backend_init(backend_vt_from_proto(
+                           conf_get_int(conf, CONF_protocol)),
+                       psftp_seat, &backend, psftp_logctx, conf,
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,
@@ -2754,6 +2776,8 @@ const bool share_can_be_upstream = false;
 static stdio_sink stderr_ss;
 static StripCtrlChars *stderr_scc;
 
+const unsigned cmdline_tooltype = TOOLTYPE_FILETRANSFER;
+
 /*
  * Main program. Parse arguments etc.
  */
@@ -2767,12 +2791,6 @@ int psftp_main(int argc, char *argv[])
     bool sanitise_stderr = true;
     char *batchfile = NULL;
 
-    flags = FLAG_INTERACTIVE
-#ifdef FLAG_SYNCAGENT
-        | FLAG_SYNCAGENT
-#endif
-        ;
-    cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     sk_init();
 
     userhost = user = NULL;
@@ -2780,7 +2798,6 @@ int psftp_main(int argc, char *argv[])
     /* Load Default Settings before doing anything else. */
     conf = conf_new();
     do_defaults(NULL, conf);
-    loaded_session = false;
 
     for (i = 1; i < argc; i++) {
         int ret;
@@ -2798,7 +2815,7 @@ int psftp_main(int argc, char *argv[])
             i++;               /* skip next argument */
         } else if (ret == 1) {
             /* We have our own verbosity in addition to `flags'. */
-            if (flags & FLAG_VERBOSE)
+            if (cmdline_verbose())
                 verbose = true;
         } else if (strcmp(argv[i], "-h") == 0 ||
                    strcmp(argv[i], "-?") == 0 ||

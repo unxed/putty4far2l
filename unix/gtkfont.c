@@ -216,18 +216,18 @@ struct x11font {
     unifont u;
 };
 
-static const struct UnifontVtable x11font_vtable = {
-    x11font_create,
-    NULL,                              /* no fallback fonts in X11 */
-    x11font_destroy,
-    x11font_has_glyph,
-    x11font_draw_text,
-    x11font_draw_combining,
-    x11font_enum_fonts,
-    x11font_canonify_fontname,
-    x11font_scale_fontname,
-    x11font_size_increment,
-    "server",
+static const UnifontVtable x11font_vtable = {
+    .create = x11font_create,
+    .create_fallback = NULL, /* no fallback fonts in X11 */
+    .destroy = x11font_destroy,
+    .has_glyph = x11font_has_glyph,
+    .draw_text = x11font_draw_text,
+    .draw_combining = x11font_draw_combining,
+    .enum_fonts = x11font_enum_fonts,
+    .canonify_fontname = x11font_canonify_fontname,
+    .scale_fontname = x11font_scale_fontname,
+    .size_increment = x11font_size_increment,
+    .prefix = "server",
 };
 
 #define XLFD_STRING_PARTS_LIST(S,I)             \
@@ -461,7 +461,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
         reg = XGetAtomName(disp, (Atom)registry_ret);
         enc = XGetAtomName(disp, (Atom)encoding_ret);
         if (reg && enc) {
-            char *encoding = dupcat(reg, "-", enc, NULL);
+            char *encoding = dupcat(reg, "-", enc);
             pubcs = realcs = charset_from_xenc(encoding);
 
             /*
@@ -511,6 +511,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
     xfont->u.height = xfont->u.ascent + xfont->u.descent;
     xfont->u.public_charset = pubcs;
     xfont->u.want_fallback = true;
+    xfont->u.strikethrough_y = xfont->u.ascent - (xfont->u.ascent * 3 / 8);
 #ifdef DRAW_TEXT_GDK
     xfont->u.preferred_drawtype = DRAWTYPE_GDK;
 #elif defined DRAW_TEXT_CAIRO
@@ -1107,7 +1108,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
              * font, which we do by examining the spacing field
              * again.
              */
-            flags = FONTFLAG_SERVERSIDE;
+            int flags = FONTFLAG_SERVERSIDE;
             if (!strchr("CcMm", xlfd->spacing[0]))
                 flags |= FONTFLAG_NONMONOSPACED;
 
@@ -1280,8 +1281,7 @@ static char *x11font_size_increment(unifont *font, int increment)
         if (xlfd_best) {
             char *bare_returned_name = xlfd_recompose(xlfd_best);
             returned_name = dupcat(
-                xfont->u.vt->prefix, ":", bare_returned_name,
-                (const char *)NULL);
+                xfont->u.vt->prefix, ":", bare_returned_name);
             sfree(bare_returned_name);
         }
 
@@ -1354,18 +1354,18 @@ struct pangofont {
     struct unifont u;
 };
 
-static const struct UnifontVtable pangofont_vtable = {
-    pangofont_create,
-    pangofont_create_fallback,
-    pangofont_destroy,
-    pangofont_has_glyph,
-    pangofont_draw_text,
-    pangofont_draw_combining,
-    pangofont_enum_fonts,
-    pangofont_canonify_fontname,
-    pangofont_scale_fontname,
-    pangofont_size_increment,
-    "client",
+static const UnifontVtable pangofont_vtable = {
+    .create = pangofont_create,
+    .create_fallback = pangofont_create_fallback,
+    .destroy = pangofont_destroy,
+    .has_glyph = pangofont_has_glyph,
+    .draw_text = pangofont_draw_text,
+    .draw_combining = pangofont_draw_combining,
+    .enum_fonts = pangofont_enum_fonts,
+    .canonify_fontname = pangofont_canonify_fontname,
+    .scale_fontname = pangofont_scale_fontname,
+    .size_increment = pangofont_size_increment,
+    .prefix = "client",
 };
 
 /*
@@ -1459,9 +1459,14 @@ static unifont *pangofont_create_internal(GtkWidget *widget,
     pfont->u.vt = &pangofont_vtable;
     pfont->u.width =
         PANGO_PIXELS(pango_font_metrics_get_approximate_digit_width(metrics));
-    pfont->u.ascent = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));
-    pfont->u.descent = PANGO_PIXELS(pango_font_metrics_get_descent(metrics));
+    pfont->u.ascent =
+        PANGO_PIXELS_CEIL(pango_font_metrics_get_ascent(metrics));
+    pfont->u.descent =
+        PANGO_PIXELS_CEIL(pango_font_metrics_get_descent(metrics));
     pfont->u.height = pfont->u.ascent + pfont->u.descent;
+    pfont->u.strikethrough_y =
+        PANGO_PIXELS(pango_font_metrics_get_ascent(metrics) -
+                     pango_font_metrics_get_strikethrough_position(metrics));
     pfont->u.want_fallback = false;
 #ifdef DRAW_TEXT_CAIRO
     pfont->u.preferred_drawtype = DRAWTYPE_CAIRO;
@@ -2042,8 +2047,7 @@ static char *pangofont_size_increment(unifont *font, int increment)
     } else {
         pango_font_description_set_size(desc, size);
         newname = pango_font_description_to_string(desc);
-        retname = dupcat(pfont->u.vt->prefix, ":",
-                         newname, (const char *)NULL);
+        retname = dupcat(pfont->u.vt->prefix, ":", newname);
         g_free(newname);
     }
 
@@ -2192,18 +2196,18 @@ struct multifont {
     struct unifont u;
 };
 
-static const struct UnifontVtable multifont_vtable = {
-    NULL,                             /* creation is done specially */
-    NULL,
-    multifont_destroy,
-    NULL,
-    multifont_draw_text,
-    multifont_draw_combining,
-    NULL,
-    NULL,
-    NULL,
-    multifont_size_increment,
-    "client",
+static const UnifontVtable multifont_vtable = {
+    .create = NULL, /* creation is done specially */
+    .create_fallback = NULL,
+    .destroy = multifont_destroy,
+    .has_glyph = NULL,
+    .draw_text = multifont_draw_text,
+    .draw_combining = multifont_draw_combining,
+    .enum_fonts = NULL,
+    .canonify_fontname = NULL,
+    .scale_fontname = NULL,
+    .size_increment = multifont_size_increment,
+    .prefix = "client",
 };
 
 unifont *multifont_create(GtkWidget *widget, const char *name,
@@ -2242,6 +2246,7 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
     mfont->u.ascent = font->ascent;
     mfont->u.descent = font->descent;
     mfont->u.height = font->height;
+    mfont->u.strikethrough_y = font->strikethrough_y;
     mfont->u.public_charset = font->public_charset;
     mfont->u.want_fallback = false; /* shouldn't be needed, but just in case */
     mfont->u.preferred_drawtype = font->preferred_drawtype;
@@ -2622,6 +2627,10 @@ static void unifontsel_setup_sizelist(unifontsel_internal *fs,
      */
     for (i = start; i < end; i++) {
         info = (fontinfo *)index234(fs->fonts_by_selorder, i);
+        if (!info) {
+            /* _shouldn't_ happen unless font list is completely funted */
+            break;
+        }
         if (info->flags &~ fs->filter_flags) {
             info->sizeindex = -1;
             continue;                  /* we're filtering out this font */
@@ -3130,9 +3139,11 @@ static void family_changed(GtkTreeSelection *treeselection, gpointer data)
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    info = update_for_intended_size(fs, info);
     if (!info)
         return; /* _shouldn't_ happen unless font list is completely funted */
+    info = update_for_intended_size(fs, info);
+    if (!info)
+        return; /* similarly shouldn't happen */
     if (!info->size)
         fs->selsize = fs->intendedsize;   /* font is scalable */
     unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
@@ -3157,9 +3168,11 @@ static void style_changed(GtkTreeSelection *treeselection, gpointer data)
     if (minval < 0)
         return;                    /* somehow a charset heading got clicked */
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    info = update_for_intended_size(fs, info);
     if (!info)
         return; /* _shouldn't_ happen unless font list is completely funted */
+    info = update_for_intended_size(fs, info);
+    if (!info)
+        return; /* similarly shouldn't happen */
     if (!info->size)
         fs->selsize = fs->intendedsize;   /* font is scalable */
     unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
@@ -3182,6 +3195,8 @@ static void size_changed(GtkTreeSelection *treeselection, gpointer data)
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, 2, &size, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
+    if (!info)
+        return; /* _shouldn't_ happen unless font list is completely funted */
     unifontsel_select_font(fs, info, info->size ? info->size : size, 3, true);
 }
 
@@ -3780,15 +3795,14 @@ char *unifontsel_get_name(unifontsel *fontsel)
         name = fs->selected->fontclass->scale_fontname
             (GTK_WIDGET(fs->u.window), fs->selected->realname, fs->selsize);
         if (name) {
-            char *ret = dupcat(fs->selected->fontclass->prefix, ":",
-                               name, NULL);
+            char *ret = dupcat(fs->selected->fontclass->prefix, ":", name);
             sfree(name);
             return ret;
         }
     }
 
     return dupcat(fs->selected->fontclass->prefix, ":",
-                  fs->selected->realname, NULL);
+                  fs->selected->realname);
 }
 
 #endif /* GTK_CHECK_VERSION(2,0,0) */

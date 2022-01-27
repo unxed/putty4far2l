@@ -89,13 +89,32 @@ static ChanopenResult chan_open_forwarded_tcpip(
 static ChanopenResult chan_open_auth_agent(
     struct ssh2_connection_state *s, SshChannel *sc)
 {
-    if (!s->agent_fwd_enabled) {
+    if (!ssh_agent_forwarding_permitted(&s->cl)) {
         CHANOPEN_RETURN_FAILURE(
             SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED,
             ("Agent forwarding is not enabled"));
     }
 
-    CHANOPEN_RETURN_SUCCESS(agentf_new(sc));
+    /*
+     * If possible, make a stream-oriented connection to the agent and
+     * set up an ordinary port-forwarding type channel over it.
+     */
+    Plug *plug;
+    Channel *ch = portfwd_raw_new(&s->cl, &plug, true);
+    Socket *skt = agent_connect(plug);
+
+    if (!sk_socket_error(skt)) {
+        portfwd_raw_setup(ch, skt, sc);
+        CHANOPEN_RETURN_SUCCESS(ch);
+    } else {
+        portfwd_raw_free(ch);
+        /*
+         * Otherwise, fall back to the old-fashioned system of parsing the
+         * forwarded data stream ourselves for message boundaries, and
+         * passing each individual message to the one-off agent_query().
+         */
+        CHANOPEN_RETURN_SUCCESS(agentf_new(sc));
+    }
 }
 
 ChanopenResult ssh2_connection_parse_channel_open(
@@ -315,7 +334,11 @@ SshChannel *ssh2_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
 static void ssh2_channel_response(
     struct ssh2_channel *c, PktIn *pkt, void *ctx)
 {
-    chan_request_response(c->chan, pkt->type == SSH2_MSG_CHANNEL_SUCCESS);
+    /* If pkt==NULL (because this handler has been called in response
+     * to CHANNEL_CLOSE arriving while the request was still
+     * outstanding), we treat that the same as CHANNEL_FAILURE. */
+    chan_request_response(c->chan,
+                          pkt && pkt->type == SSH2_MSG_CHANNEL_SUCCESS);
 }
 
 void ssh2channel_start_shell(SshChannel *sc, bool want_reply)
@@ -477,5 +500,6 @@ void ssh2channel_send_terminal_size_change(SshChannel *sc, int w, int h)
 
 bool ssh2_connection_need_antispoof_prompt(struct ssh2_connection_state *s)
 {
-    return !seat_set_trust_status(s->ppl.seat, false);
+    bool success = seat_set_trust_status(s->ppl.seat, false);
+    return (!success && !ssh_is_bare(s->ppl.ssh));
 }

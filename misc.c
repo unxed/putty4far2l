@@ -22,6 +22,10 @@
 #include "putty.h"
 #include "misc.h"
 
+#define BASE64_CHARS_NOEQ \
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"
+#define BASE64_CHARS_ALL BASE64_CHARS_NOEQ "="
+
 void seat_connection_fatal(Seat *seat, const char *fmt, ...)
 {
     va_list ap;
@@ -51,43 +55,29 @@ void add_prompt(prompts_t *p, char *promptstr, bool echo)
     prompt_t *pr = snew(prompt_t);
     pr->prompt = promptstr;
     pr->echo = echo;
-    pr->result = NULL;
-    pr->resultsize = 0;
+    pr->result = strbuf_new_nm();
     sgrowarray(p->prompts, p->prompts_size, p->n_prompts);
     p->prompts[p->n_prompts++] = pr;
 }
-void prompt_ensure_result_size(prompt_t *pr, int newlen)
-{
-    if ((int)pr->resultsize < newlen) {
-        char *newbuf;
-        newlen = newlen * 5 / 4 + 512; /* avoid too many small allocs */
-
-        /*
-         * We don't use sresize / realloc here, because we will be
-         * storing sensitive stuff like passwords in here, and we want
-         * to make sure that the data doesn't get copied around in
-         * memory without the old copy being destroyed.
-         */
-        newbuf = snewn(newlen, char);
-        memcpy(newbuf, pr->result, pr->resultsize);
-        smemclr(pr->result, pr->resultsize);
-        sfree(pr->result);
-        pr->result = newbuf;
-        pr->resultsize = newlen;
-    }
-}
 void prompt_set_result(prompt_t *pr, const char *newstr)
 {
-    prompt_ensure_result_size(pr, strlen(newstr) + 1);
-    strcpy(pr->result, newstr);
+    strbuf_clear(pr->result);
+    put_datapl(pr->result, ptrlen_from_asciz(newstr));
+}
+const char *prompt_get_result_ref(prompt_t *pr)
+{
+    return pr->result->s;
+}
+char *prompt_get_result(prompt_t *pr)
+{
+    return dupstr(pr->result->s);
 }
 void free_prompts(prompts_t *p)
 {
     size_t i;
     for (i=0; i < p->n_prompts; i++) {
         prompt_t *pr = p->prompts[i];
-        smemclr(pr->result, pr->resultsize); /* burn the evidence */
-        sfree(pr->result);
+        strbuf_free(pr->result);
         sfree(pr->prompt);
         sfree(pr);
     }
@@ -143,22 +133,32 @@ bool validate_manual_hostkey(char *key)
          * Now q is our word.
          */
 
-        if (strlen(q) == 16*3 - 1 &&
-            q[strspn(q, "0123456789abcdefABCDEF:")] == 0) {
+        if (strstartswith(q, "SHA256:")) {
+            /* Test for a valid SHA256 key fingerprint. */
+            r = q + 7;
+            if (strlen(r) == 43 && r[strspn(r, BASE64_CHARS_NOEQ)] == 0)
+                return true;
+        }
+
+        r = q;
+        if (strstartswith(r, "MD5:"))
+            r += 4;
+        if (strlen(r) == 16*3 - 1 &&
+            r[strspn(r, "0123456789abcdefABCDEF:")] == 0) {
             /*
-             * Might be a key fingerprint. Check the colons are in the
-             * right places, and if so, return the same fingerprint
-             * canonicalised into lowercase.
+             * Test for a valid MD5 key fingerprint. Check the colons
+             * are in the right places, and if so, return the same
+             * fingerprint canonicalised into lowercase.
              */
             int i;
             for (i = 0; i < 16; i++)
-                if (q[3*i] == ':' || q[3*i+1] == ':')
+                if (r[3*i] == ':' || r[3*i+1] == ':')
                     goto not_fingerprint; /* sorry */
             for (i = 0; i < 15; i++)
-                if (q[3*i+2] != ':')
+                if (r[3*i+2] != ':')
                     goto not_fingerprint; /* sorry */
             for (i = 0; i < 16*3 - 1; i++)
-                key[i] = tolower(q[i]);
+                key[i] = tolower(r[i]);
             key[16*3 - 1] = '\0';
             return true;
         }
@@ -175,8 +175,7 @@ bool validate_manual_hostkey(char *key)
         *s = '\0';
 
         if (strlen(q) % 4 == 0 && strlen(q) > 2*4 &&
-            q[strspn(q, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                     "abcdefghijklmnopqrstuvwxyz+/=")] == 0) {
+            q[strspn(q, BASE64_CHARS_ALL)] == 0) {
             /*
              * Might be a base64-encoded SSH-2 public key blob. Check
              * that it starts with a sensible algorithm string. No
@@ -237,22 +236,47 @@ char *buildinfo(const char *newline)
 #else
     strbuf_catf(buf, ", emulating ");
 #endif
-    strbuf_catf(buf, "Visual Studio", newline);
+    strbuf_catf(buf, "Visual Studio");
 
 #if 0
     /*
      * List of _MSC_VER values and their translations taken from
      * https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros
-     * except for 1920, which is not yet listed on that page as of
-     * 2019-03-22, and was determined experimentally by Sean Kain.
      *
      * The pointless #if 0 branch containing this comment is there so
      * that every real clause can start with #elif and there's no
      * anomalous first clause. That way the patch looks nicer when you
      * add extra ones.
      */
+#elif _MSC_VER == 1928 && _MSC_FULL_VER >= 192829500
+    /*
+     * 16.9 and 16.8 have the same _MSC_VER value, and have to be
+     * distinguished by _MSC_FULL_VER. As of 2021-03-04 that is not
+     * mentioned on the above page, but see e.g.
+     * https://developercommunity.visualstudio.com/t/the-169-cc-compiler-still-uses-the-same-version-nu/1335194#T-N1337120
+     * which says that 16.9 builds will have versions starting at
+     * 19.28.29500.* and going up. Hence, 19 28 29500 is what we
+     * compare _MSC_FULL_VER against above.
+     */
+    strbuf_catf(buf, " 2019 (16.9)");
+#elif _MSC_VER == 1928
+    strbuf_catf(buf, " 2019 (16.8)");
+#elif _MSC_VER == 1927
+    strbuf_catf(buf, " 2019 (16.7)");
+#elif _MSC_VER == 1926
+    strbuf_catf(buf, " 2019 (16.6)");
+#elif _MSC_VER == 1925
+    strbuf_catf(buf, " 2019 (16.5)");
+#elif _MSC_VER == 1924
+    strbuf_catf(buf, " 2019 (16.4)");
+#elif _MSC_VER == 1923
+    strbuf_catf(buf, " 2019 (16.3)");
+#elif _MSC_VER == 1922
+    strbuf_catf(buf, " 2019 (16.2)");
+#elif _MSC_VER == 1921
+    strbuf_catf(buf, " 2019 (16.1)");
 #elif _MSC_VER == 1920
-    strbuf_catf(buf, " 2019 (16.x)");
+    strbuf_catf(buf, " 2019 (16.0)");
 #elif _MSC_VER == 1916
     strbuf_catf(buf, " 2017 version 15.9");
 #elif _MSC_VER == 1915
@@ -354,8 +378,8 @@ void nullseat_update_specials_menu(Seat *seat) {}
 char *nullseat_get_ttymode(Seat *seat, const char *mode) { return NULL; }
 void nullseat_set_busy_status(Seat *seat, BusyStatus status) {}
 int nullseat_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *key_fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **key_fingerprints,
     void (*callback)(void *ctx, int result), void *ctx) { return 0; }
 int nullseat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -374,6 +398,14 @@ StripCtrlChars *nullseat_stripctrl_new(
     Seat *seat, BinarySink *bs_out, SeatInteractionContext sic) {return NULL;}
 bool nullseat_set_trust_status(Seat *seat, bool tr) { return false; }
 bool nullseat_set_trust_status_vacuously(Seat *seat, bool tr) { return true; }
+bool nullseat_verbose_no(Seat *seat) { return false; }
+bool nullseat_verbose_yes(Seat *seat) { return true; }
+bool nullseat_interactive_no(Seat *seat) { return false; }
+bool nullseat_interactive_yes(Seat *seat) { return true; }
+bool nullseat_get_cursor_position(Seat *seat, int *x, int *y) { return false; }
+
+bool null_lp_verbose_no(LogPolicy *lp) { return false; }
+bool null_lp_verbose_yes(LogPolicy *lp) { return true; }
 
 void sk_free_peer_info(SocketPeerInfo *pi)
 {
