@@ -3322,15 +3322,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             memcpy(kev + 10, &uchar, sizeof(uchar));
             memcpy(kev + 14, &type, sizeof(type));
 
-            /*
-            FILE *f; f = fopen("putty.log", "a");
-            fprintf(f, "r: %d, vkc: %c, vsc: %c, ctrl: %ld, uchar: %ld, type: %lc\n",
-                repeat, vkc, vsc, ctrl, uchar, type);
-            fprintf(f, "r: %d, vkc: %d, vsc: %d, ctrl: %ld, uchar: %ld, type: %d\n",
-                repeat, vkc, vsc, ctrl, uchar, type);
-            fclose(f);
-            */
-
             // base64-encode kev
         	base64_encodestate _state;
             base64_init_encodestate(&_state);

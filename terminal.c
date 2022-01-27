@@ -3296,18 +3296,10 @@ static void do_osc(Terminal *term)
                                 d_out[len] = 0; // zero-terminate format name
 
                                 #ifdef _WINDOWS
-                                // far2l sends format name as (utf8?) string, which actually containing ascii only
+                                // far2l sends format name as (utf8?) string, which actually contains ascii only
                                 // so we can just call ascii function
                                 uint32_t status = RegisterClipboardFormatA(d_out);
                                 #endif
-
-                                /*
-                                FILE *f; f = fopen("putty.log", "a");
-                                fprintf(f, "status: %d, format: [%s]\n", status, d_out);
-                                fclose(f);
-
-                                // status: 49220, format: [FAR_VerticalBlock_Unicode]
-                                */
 
                                 reply_size = 5;
                                 reply = malloc(reply_size);
@@ -3628,23 +3620,6 @@ static void do_osc(Terminal *term)
                         break;
                 }
                 
-                /*
-                if (reply_size == 0) {
-                    // unsupported sequences
-
-                    term->osc_string[term->osc_strlen] = 0;
-
-                    FILE *f; f = fopen("putty.log", "a");
-                    fprintf(f, "string: %.*s, strlen: %d\n", term->osc_strlen, term->osc_string, term->osc_strlen);
-                    fprintf(f, "d_count: %d, d_out: [", d_count);
-                    for(int i=0;i<d_count;i++) {
-                        fprintf(f, "%c",d_out[i]);
-                    }
-                    fprintf(f, "]\n");
-                    fclose(f);
-                }
-                */
-
                 free(d_out);
 
                 if (reply_size > 0) {
