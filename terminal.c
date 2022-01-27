@@ -3115,29 +3115,18 @@ static void do_osc(Terminal *term)
     /* far2l */
     if (term->is_apc) {
 
-        /*
-
-        FIXME
-        От удаленного far2l может придти строка любой длины,
-        а длина term->osc_string - фиксированная (2048 байт).
-        Длинный буфер обмена не пролезет.
-
-        Надо бы сделать какую-нибудь динамическую структуру.
-
-        Хотя бы так:
-        void *realloc(void *ptr, size_t newsize)
-
-        Пока увеличил до мегабайта и сделал предупреждение,
-        если не пролезаем :)
-
-        */
-
         #ifndef _WINDOWS
             #define DWORD unsigned int
             #define WORD unsigned short
         #endif
 
         if (strncmp(term->osc_string, "far2l", 5) == 0) {
+
+            // okay, this is far2l terminal extensions APC sequence
+
+            // for more info about far2l terminal extensions please see:
+            // https://github.com/cyd01/KiTTY/issues/74
+            // https://github.com/elfmz/far2l/blob/master/WinPort/FarTTY.h
 
             if (strncmp(term->osc_string+5, "1", 1) == 0) {
                 term->far2l_ext = 1;
@@ -3634,8 +3623,8 @@ static void do_osc(Terminal *term)
                     base64_encodestate _state;
                     base64_init_encodestate(&_state);
                     char* out = malloc(reply_size*2);
-		            int count = base64_encode_block((char*)reply, reply_size, out, &_state);
-        		    count += base64_encode_blockend(out + count, &_state);
+                    int count = base64_encode_block((char*)reply, reply_size, out, &_state);
+                    count += base64_encode_blockend(out + count, &_state);
 
                     // send escape seq
 
