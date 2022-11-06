@@ -3176,6 +3176,7 @@ static void do_osc(Terminal *term)
                 }
 
                 DWORD len;
+                DWORD zero = 0;
 
                 // next from the end byte is command
                 switch (d_out[d_count-2]) {
@@ -3186,7 +3187,6 @@ static void do_osc(Terminal *term)
                         reply = malloc(reply_size);
 
                         // fixme: unimplemented
-                        DWORD zero = 0;
 
                         memcpy(reply, &zero, sizeof(DWORD));
 
@@ -3605,6 +3605,17 @@ static void do_osc(Terminal *term)
 
                                 break;
                         }
+
+                        break;
+
+                    default:
+
+                        // not implemented
+
+                        reply_size = 5;
+                        reply = malloc(reply_size);
+
+                        memcpy(reply, &zero, sizeof(DWORD));
 
                         break;
                 }
