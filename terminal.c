@@ -3604,6 +3604,17 @@ static void do_osc(Terminal *term)
                                 }
 
                                 break;
+
+                            default:
+
+                                // not implemented
+
+                                reply_size = 5;
+                                reply = malloc(reply_size);
+
+                                memcpy(reply, &zero, sizeof(DWORD));
+
+                                break;
                         }
 
                         break;
