@@ -3608,6 +3608,16 @@ static void do_osc(Terminal *term)
 
                         break;
 
+                    case 'p':
+
+                        reply_size = 3; // reserved byte, bits byte, id byte
+                        reply = malloc(reply_size);
+
+                        reply[0] = 0;
+                        reply[1] = 24;
+
+                        break;
+
                     default:
 
                         // not implemented
