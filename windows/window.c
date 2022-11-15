@@ -3338,13 +3338,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
             // send escape seq
 
-            char* str = "\x1b_f2l";
-            backend_send(backend, str, strlen(str));
+            if (backend) {
 
-            backend_send(backend, out, count);
+                char* str = "\x1b_f2l";
+                backend_send(backend, str, strlen(str));
 
-            char* str2 = "\x07";
-            backend_send(backend, str2, strlen(str2));
+                backend_send(backend, out, count);
+
+                char* str2 = "\x07";
+                backend_send(backend, str2, strlen(str2));
+            }
 
             // don't forget to free memory :)
             free(out);
