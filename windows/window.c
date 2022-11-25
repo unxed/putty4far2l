@@ -3266,6 +3266,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             vsc = HIWORD(lParam) & 0xFF;
             vkc = LOWORD(wParam);
 
+            if ((message == WM_KEYDOWN) || (message == WM_SYSKEYDOWN)) {
+                FILE *fp = fopen("putty.log", "ab");
+                fprintf(fp, "%03i %03i\n", vkc, vsc);
+                fclose(fp);
+            }
+
             // this fixes far2l's "editor autocomplete" plugin behavior
             if ((vkc == VK_TAB) || (vkc == VK_BACK) || (vkc == VK_ESCAPE) || (vkc == VK_DELETE)) {
                 vsc = 0;
@@ -3288,8 +3294,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             // shift keys. But PuTTY is not a console app, so why not to send
             // all information about control keys state that we actually have here?
             // Using bits not used by any other status for backward compatibility.
-            #define RIGHT_SHIFT_PRESSED 0x1000
-            #define LEFT_SHIFT_PRESSED 0x2000
+            #define RIGHT_SHIFT_PRESSED 0x0400
+            #define LEFT_SHIFT_PRESSED 0x0200
             if (GetAsyncKeyState(VK_LSHIFT)) { ctrl |= RIGHT_SHIFT_PRESSED; }
             if (GetAsyncKeyState(VK_RSHIFT)) { ctrl |= LEFT_SHIFT_PRESSED; }
             // end
@@ -3309,7 +3315,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
             // set event type
             if ((message == WM_KEYDOWN) || (message == WM_SYSKEYDOWN)) {
-                type = 'K';
+                type = 'K';            
             } else {
                 type = 'k';
             }
