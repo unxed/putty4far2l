@@ -1,4 +1,7 @@
 # putty4far2l
+
+NB! putty4far2l rebased for recent putty release is available [here](https://github.com/ivanshatsky/putty4far2l/releases/tag/0.78.1-dev)
+
 **Readme in english is below**
 
 Форк [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) 0.76 с поддержкой [расширений](https://github.com/cyd01/KiTTY/issues/74#issuecomment-626917718) терминала [far2l](https://github.com/elfmz/far2l) (на данный момент готова поддержка сочетаний клавиш, необходимых far2l, и синхронизация буфера обмена). На данный момент расширения работают только в версии putty для Windows (поддержка расширений в сборке для unix-like систем пока на очень ранней стадии реализации), используйте встроенный терминал графической версии far2l на unix-подобных системах.
