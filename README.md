@@ -1,6 +1,6 @@
 # putty4far2l
 
-NB! putty4far2l rebased for recent putty release is available [here](https://github.com/ivanshatsky/putty4far2l/releases/tag/0.78.1-dev)
+NB! putty4far2l rebased for recent putty release is available [here](https://github.com/ivanshatsky/putty4far2l/releases/latest)
 
 **Readme in english is below**
 
