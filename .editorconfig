@@ -1,0 +1,26 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+
+[Makefile*]
+indent_style = tab
+
+[cencode*]
+indent_style = tab
+
+[cdecode*]
+indent_style = tab
+
+[install-sh]
+indent_size = 2
+
+[depcomp]
+indent_size = 2
+
+[configure]
+indent_size = 2
+
+[ar-lib]
+indent_size = 2
