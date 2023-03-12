@@ -69,7 +69,7 @@ int base64_encode_block(const char* plaintext_in, int length_in, char* code_out,
 			fragment = *plainchar++;
 			result |= (fragment & 0x0c0) >> 6;
 			*codechar++ = base64_encode_value(result);
-			result  = (fragment & 0x03f) >> 0;
+			result = (fragment & 0x03f) >> 0;
 			*codechar++ = base64_encode_value(result);
 			
 			++(state_in->stepcount);

@@ -3323,11 +3323,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             memcpy(kev + 14, &type, sizeof(type));
 
             // base64-encode kev
-        	base64_encodestate _state;
+            base64_encodestate _state;
             base64_init_encodestate(&_state);
             char* out = malloc(15*2);
             int count = base64_encode_block(kev, 15, out, &_state);
-		    count += base64_encode_blockend(out + count, &_state);
+            count += base64_encode_blockend(out + count, &_state);
 
             /*
             out[count] = 0; // null-terminate
