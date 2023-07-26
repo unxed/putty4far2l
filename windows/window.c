@@ -3266,6 +3266,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             vsc = HIWORD(lParam) & 0xFF;
             vkc = LOWORD(wParam);
 
+            /*
+            {
+                int vscan = (lParam >> 16) & 0xFF; // Key scan code
+                bool ext = (lParam >> 24) & 1; // Extended key flag
+                FILE* f = fopen("putty.log", "a");
+                if ((message == WM_KEYDOWN) || (message == WM_SYSKEYDOWN)) {
+                    fprintf(f, "Down ");
+                } else {
+                    fprintf(f, "Up   ");
+                }
+                fprintf(f, "%4i %4i %4i %i\n", wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), vscan, ext);
+                fclose(f);
+            }
+            */
+
             // this fixes far2l's "editor autocomplete" plugin behavior
             if ((vkc == VK_TAB) || (vkc == VK_BACK) || (vkc == VK_ESCAPE) || (vkc == VK_DELETE)) {
                 vsc = 0;
