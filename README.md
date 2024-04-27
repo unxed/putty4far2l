@@ -1,6 +1,7 @@
 # putty4far2l
 
-NB! putty4far2l rebased for recent putty release is available [here](https://github.com/ivanshatsky/putty4far2l/releases/latest)
+Внимание! putty4far2l на основе более свежей версии putty доступна [здесь] (https://github.com/ivanshatsky/putty4far2l/releases/latest)
+NB! putty4far2l rebased for more recent putty release is available [here](https://github.com/ivanshatsky/putty4far2l/releases/latest)
 
 **Readme in english is below**
 
