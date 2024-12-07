@@ -78,6 +78,7 @@ Makefile
 /contrib/cygtermd/cygtermd.exe
 /doc/*.html
 /doc/*.txt
+!/doc/CMakeLists.txt
 /doc/*.cnt
 /doc/*.hlp
 /doc/*.gid
