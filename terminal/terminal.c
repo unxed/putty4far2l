@@ -17,6 +17,11 @@
 #include "../b64/cencode.h"
 #include "../b64/cdecode.h"
 
+/* for far2l system tray notifications support */
+#include <windows.h>
+#include <shellapi.h>
+#include <string.h>
+
 #define VT52_PLUS
 
 #define CL_ANSIMIN      0x0001         /* Codes in all ANSI like terminals. */
@@ -3260,10 +3265,6 @@ static void do_osc(Terminal *term)
 
                     case 'n':;
 
-                        /* // not ready yet
-
-                        // todo: generate some reply
-                        // todo: show notification only if window is out of focus
                         // todo: remove icon after notification timeout or by mouse click
 
                         // title length, source, utf8, no zero-terminate, bytes
@@ -3283,44 +3284,54 @@ static void do_osc(Terminal *term)
                         // so we can not assume ascii here and should do
                         // full utf8->multibyte conversion
 
-                        titlesz_wc = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)(d_out+len2+4), len1, 0, 0);
+                        titlesz_wc = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)(d_out + len2 + 4), len1, 0, 0);
                         textsz_wc = MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len2, 0, 0);
 
                         if (titlesz_wc && textsz_wc) {
-                            title_wc = malloc((titlesz_wc+1)*sizeof(wchar_t));
-                            MultiByteToWideChar(CP_UTF8, 0, (LPCCH)(d_out+len2+4), len1, title_wc, titlesz_wc);
-                            text_wc = malloc((textsz_wc+1)*sizeof(wchar_t));
-                            MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len2, text_wc, textsz_wc);
+                            title_wc = (LPWSTR)malloc((titlesz_wc + 1) * sizeof(wchar_t));
+                            text_wc = (LPWSTR)malloc((textsz_wc + 1) * sizeof(wchar_t));
 
-                            title_wc[titlesz_wc] = 0;
-                            text_wc[textsz_wc] = 0;
+                            if (title_wc && text_wc) {
+                                if (MultiByteToWideChar(CP_UTF8, 0, (LPCCH)(d_out + len2 + 4), len1, title_wc, titlesz_wc) &&
+                                    MultiByteToWideChar(CP_UTF8, 0, (LPCCH)d_out, len2, text_wc, textsz_wc)) {
 
-                            NOTIFYICONDATAW pnid;
+                                    title_wc[titlesz_wc] = 0;
+                                    text_wc[textsz_wc] = 0;
 
-                            // todo: do this on window focus also
-                            pnid.cbSize = sizeof(pnid);
-                            pnid.hWnd = NULL;
-                            pnid.hIcon = LoadIcon(0, IDI_APPLICATION);
-                            pnid.uID = 200;
-                            Shell_NotifyIconW(NIM_DELETE, &pnid);
+                                    NOTIFYICONDATAW pnid = {sizeof(pnid)};
+                                    pnid.hWnd = 0;
+                                    pnid.uID = 200;
 
-                            // todo: use putty icon
-                            pnid.cbSize = sizeof(pnid);
-                            pnid.hWnd = NULL;
-                            pnid.hIcon = LoadIcon(0, IDI_APPLICATION);
-                            pnid.uID = 200;
-                            pnid.uFlags = NIF_ICON | NIF_INFO | NIF_MESSAGE;
-                            pnid.uCallbackMessage = (WM_USER + 200);
-                            pnid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
-                            memcpy(pnid.szInfoTitle, title_wc, (titlesz_wc+1)*sizeof(wchar_t));
-                            memcpy(pnid.szInfo, text_wc, (textsz_wc+1)*sizeof(wchar_t));
-                            Shell_NotifyIconW(NIM_ADD, &pnid);
+                                    // Remove previous notification (if any)
+                                    Shell_NotifyIconW(NIM_DELETE, &pnid);
+
+                                    // Use default PuTTY icon
+                                    pnid.hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_APPLICATION));
+
+                                    pnid.uFlags = NIF_ICON | NIF_INFO | NIF_MESSAGE;
+                                    pnid.uCallbackMessage = WM_USER + 200;
+                                    pnid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
+
+                                    wcsncpy(pnid.szInfoTitle, title_wc, ARRAYSIZE(pnid.szInfoTitle) - 1);
+                                    pnid.szInfoTitle[ARRAYSIZE(pnid.szInfoTitle) - 1] = L'\0';
+
+                                    wcsncpy(pnid.szInfo, text_wc, ARRAYSIZE(pnid.szInfo) - 1);
+                                    pnid.szInfo[ARRAYSIZE(pnid.szInfo) - 1] = L'\0';
+
+                                    if (!term->has_focus && !Shell_NotifyIconW(NIM_ADD, &pnid)) {
+                                        // Error handling
+                                    }
+                                }
+                            }
 
                             free(text_wc);
                             free(title_wc);
                         }
 
-                        */
+                        // zero reply
+                        reply_size = 5;
+                        reply = malloc(reply_size);
+                        memcpy(reply, &zero, sizeof(DWORD));
 
                         break;
 
