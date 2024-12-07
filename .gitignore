@@ -141,3 +141,5 @@ Makefile
 /windows/*.msi
 /windows/*.wixobj
 /windows/*.wixpdb
+/build
+!/build/putty.exe
