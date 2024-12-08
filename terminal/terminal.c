@@ -3350,10 +3350,20 @@ static void do_osc(Terminal *term)
                             }
 
                             if (title_wc && text_wc) {
+
                                 NOTIFYICONDATAW pnid = {0};
                                 pnid.cbSize = sizeof(NOTIFYICONDATAW);
-                                pnid.hWnd = 0;
+
+
+                                static wchar_t *classname = NULL;
+                                classname = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
+                                pnid.hWnd = FindWindowW(classname, NULL);
+
                                 pnid.uID = 200;
+
+                                Shell_NotifyIconW(NIM_DELETE, &pnid); // Ignore errors from deletion
+
+
                                 pnid.uTimeout = 5000;
                                 pnid.uFlags = NIF_ICON | NIF_INFO;
                                 pnid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
@@ -3369,28 +3379,16 @@ static void do_osc(Terminal *term)
                                     break;
                                 }
 
-                                Shell_NotifyIconW(NIM_DELETE, &pnid); // Ignore errors from deletion
-
                                 wcsncpy_s(pnid.szInfoTitle, ARRAYSIZE(pnid.szInfoTitle), title_wc, _TRUNCATE);
                                 wcsncpy_s(pnid.szInfo, ARRAYSIZE(pnid.szInfo), text_wc, _TRUNCATE);
 
-                                if (Shell_NotifyIconW(NIM_ADD, &pnid)) {
-
-                                    pnid.uVersion = NOTIFYICON_VERSION_4;
-
-                                    if (!Shell_NotifyIconW(NIM_SETVERSION, &pnid)) {
-                                        DWORD error = GetLastError();
-                                        wchar_t error_msg[256];
-                                        swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to set version. Error code: %lu", error);
-                                        MessageBoxW(NULL, error_msg, L"Error", MB_OK);
-                                    }
-
-                                } else {
+                                if (!Shell_NotifyIconW(NIM_ADD, &pnid)) {
                                     DWORD error = GetLastError();
                                     wchar_t error_msg[256];
                                     swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to add notification icon. Error code: %lu", error);
                                     MessageBoxW(NULL, error_msg, L"Error", MB_OK);
                                 }
+
                             }
 
                             if (title_wc) free(title_wc); title_wc = NULL;
