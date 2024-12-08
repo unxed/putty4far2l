@@ -195,6 +195,7 @@ struct terminal_tag {
     bool is_apc;
     int clip_allowed;
     DWORD prev_uchar;
+    HWND notif_hwnd;
 
     char id_string[1024];
 

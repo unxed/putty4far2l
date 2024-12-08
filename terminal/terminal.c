@@ -1435,6 +1435,7 @@ static void power_on(Terminal *term, bool clear)
     /* reset far2l extensions state */
     term->far2l_ext = 0;
     term->prev_uchar = 0;
+    term->notif_hwnd = 0;
 
     term->alt_x = term->alt_y = 0;
     term->savecurs.x = term->savecurs.y = 0;
@@ -2188,6 +2189,8 @@ void term_free(Terminal *term)
         term_userpass_state_free(term->userpass_state);
 
     sfree(term->osc_string);
+
+    if (term->notif_hwnd) DestroyWindow(term->notif_hwnd);
 
     sfree(term);
 }
@@ -3354,13 +3357,11 @@ static void do_osc(Terminal *term)
                                 NOTIFYICONDATAW pnid = {0};
                                 pnid.cbSize = sizeof(NOTIFYICONDATAW);
 
-
-                                static wchar_t *classname = NULL;
-                                classname = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
-                                pnid.hWnd = FindWindowW(classname, NULL);
-
                                 pnid.uID = 200;
-
+                                if (!term->notif_hwnd) {
+                                    term->notif_hwnd = CreateWindowExW(0, L"static", L"", 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                                }
+                                pnid.hWnd = term->notif_hwnd;
                                 Shell_NotifyIconW(NIM_DELETE, &pnid); // Ignore errors from deletion
 
 
