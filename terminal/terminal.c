@@ -3381,7 +3381,7 @@ static void do_osc(Terminal *term)
                                     if (!Shell_NotifyIconW(NIM_SETVERSION, &pnid)) {
                                         DWORD error = GetLastError();
                                         wchar_t error_msg[256];
-                                        swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to modify notification. Error code: %lu", error);
+                                        swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to set version. Error code: %lu", error);
                                         MessageBoxW(NULL, error_msg, L"Error", MB_OK);
                                     }
 
