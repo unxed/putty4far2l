@@ -23,20 +23,15 @@ By default MSVCRT is linked dynamically.
 
 Все изменения сосредоточены в файлах `windows/window.c` и `terminal.c`, ищите по строчке `far2l`.
 
-Кросс-компиляция на Ubuntu 18.04:
+Кросс-компиляция на Ubuntu 24.04:
 ```
 sudo apt install mingw-w64
 git clone https://github.com/unxed/putty4far2l.git
-cd putty4far2l/windows
+./make_with_mingw.sh
 ```
 
-А потом, для сборки версии для x86:
-
-`make TOOLPATH=i686-w64-mingw32- -f Makefile.mgw putty.exe`
-
-Или для x86_64:
-
-`make TOOLPATH=x86_64-w64-mingw32- -f Makefile.mgw putty.exe`
+По умолчанию собирается 32-битная версия.
+Чтобы собирать под x86_64 (64 бита), замените `i686-w64-mingw32` на `x86_64-w64-mingw32` в `make_with_mingw.sh`.
 
 Если вы планируете собирать PuTTY на Linux и тестировать в wine (я именно так и делаю), может потребоваться [снять все галки](https://bugs.winehq.org/show_bug.cgi?id=48196) в Connection-SSH-Auth-GSSAPI, а то будет вылетать (или же сделать `sudo apt install libkrb5-3:i386 libgssapi-krb5-2:i386`).
 
@@ -59,20 +54,15 @@ cd putty4far2l/windows
 
 All changes are in files `windows/window.c` and `terminal.c`, you may search by `far2l` string to find them.
 
-Cross-compilation on Ubuntu 18.04:
+Cross-compilation on Ubuntu 24.04:
 ```
 sudo apt install mingw-w64
 git clone https://github.com/unxed/putty4far2l.git
-cd putty4far2l/windows
+./make_with_mingw.sh
 ```
 
-And then, for x86:
-
-`make TOOLPATH=i686-w64-mingw32- -f Makefile.mgw putty.exe`
-
-Or for x86_64:
-
-`make TOOLPATH=x86_64-w64-mingw32- -f Makefile.mgw putty.exe`
+By default 32 bit version is built.
+For x86_64 (64 bit), replace `i686-w64-mingw32` with `x86_64-w64-mingw32` in `make_with_mingw.sh`.
 
 If you plan to build PuTTY on Linux and test in wine (as do I), you may need to [uncheck](https://bugs.winehq.org/show_bug.cgi?id=48196) all checkboxes in Connection-SSH-Auth-GSSAPI to avoid pagefaults (or do `sudo apt install libkrb5-3:i386 libgssapi-krb5-2:i386`).
 
