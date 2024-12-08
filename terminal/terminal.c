@@ -3299,8 +3299,7 @@ static void do_osc(Terminal *term)
                                         wchar_t error_msg[256];
                                         swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to convert title. Error code: %lu", error);
                                         MessageBoxW(NULL, error_msg, L"Error", MB_OK);
-                                        free(title_wc);
-                                        title_wc = NULL;
+                                        if (title_wc) free(title_wc); title_wc = NULL;
                                         break;
                                     }
                                 } else {
@@ -3328,10 +3327,8 @@ static void do_osc(Terminal *term)
                                             wchar_t error_msg[256];
                                             swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to convert text. Error code: %lu", error);
                                             MessageBoxW(NULL, error_msg, L"Error", MB_OK);
-                                            free(text_wc);
-                                            text_wc = NULL;
-                                            free(title_wc);
-                                            title_wc = NULL;
+                                            if (title_wc) free(title_wc); title_wc = NULL;
+                                            if (text_wc) free(text_wc); text_wc = NULL;
                                             break;
                                         }
                                     } else {
@@ -3339,8 +3336,7 @@ static void do_osc(Terminal *term)
                                         wchar_t error_msg[256];
                                         swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to allocate memory for text. Error code: %lu", error);
                                         MessageBoxW(NULL, error_msg, L"Error", MB_OK);
-                                        free(title_wc);
-                                        title_wc = NULL;
+                                        if (title_wc) free(title_wc); title_wc = NULL;
                                         break;
                                     }
                                 } else {
@@ -3348,8 +3344,7 @@ static void do_osc(Terminal *term)
                                     wchar_t error_msg[256];
                                     swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to get text size. Error code: %lu", error);
                                     MessageBoxW(NULL, error_msg, L"Error", MB_OK);
-                                    free(title_wc);
-                                    title_wc = NULL;
+                                    if (title_wc) free(title_wc); title_wc = NULL;
                                     break;
                                 }
                             }
@@ -3360,6 +3355,17 @@ static void do_osc(Terminal *term)
                                 pnid.hWnd = 0;
                                 pnid.uID = 200;
 
+                                pnid.hIcon = LoadIcon(NULL, IDI_INFORMATION);
+                                if (pnid.hIcon == NULL) {
+                                    DWORD error = GetLastError();
+                                    wchar_t error_msg[256];
+                                    swprintf(error_msg, ARRAYSIZE(error_msg), L"Failed to load icon. Error code: %lu", error);
+                                    MessageBoxW(NULL, error_msg, L"Error", MB_OK);
+                                    if (title_wc) free(title_wc); title_wc = NULL;
+                                    if (text_wc) free(text_wc); text_wc = NULL;
+                                    break;
+                                }
+
                                 Shell_NotifyIconW(NIM_DELETE, &pnid); // Ignore errors from deletion
 
                                 pnid.uFlags = NIF_MESSAGE | NIF_TIP | NIF_INFO;
@@ -3368,7 +3374,7 @@ static void do_osc(Terminal *term)
                                 wcsncpy_s(pnid.szTip, ARRAYSIZE(pnid.szTip), title_wc, _TRUNCATE);
 
                                 if (Shell_NotifyIconW(NIM_ADD, &pnid)) {
-                                    pnid.uFlags = NIF_INFO;
+                                    pnid.uFlags = NIF_ICON | NIF_INFO;
                                     pnid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
 
                                     wcsncpy_s(pnid.szInfoTitle, ARRAYSIZE(pnid.szInfoTitle), title_wc, _TRUNCATE);
@@ -3388,8 +3394,8 @@ static void do_osc(Terminal *term)
                                 }
                             }
 
-                            if (title_wc) free(title_wc);
-                            if (text_wc) free(text_wc);
+                            if (title_wc) free(title_wc); title_wc = NULL;
+                            if (text_wc) free(text_wc); text_wc = NULL;
                         }
 
                         break;
