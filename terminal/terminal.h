@@ -194,6 +194,7 @@ struct terminal_tag {
     int far2l_ext;
     bool is_apc;
     int clip_allowed;
+    DWORD prev_uchar;
 
     char id_string[1024];
 

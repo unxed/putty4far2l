@@ -1434,6 +1434,7 @@ static void power_on(Terminal *term, bool clear)
 {
     /* reset far2l extensions state */
     term->far2l_ext = 0;
+    term->prev_uchar = 0;
 
     term->alt_x = term->alt_y = 0;
     term->savecurs.x = term->savecurs.y = 0;
