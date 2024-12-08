@@ -3355,8 +3355,7 @@ static void do_osc(Terminal *term)
                                 pnid.hWnd = 0;
                                 pnid.uID = 200;
                                 pnid.uTimeout = 5000;
-                                pnid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_INFO | NIF_SHOWTIP;
-                                pnid.uCallbackMessage = WM_USER + 200;
+                                pnid.uFlags = NIF_ICON | NIF_INFO;
                                 pnid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
 
                                 pnid.hIcon = LoadIcon(NULL, IDI_INFORMATION);
@@ -3371,8 +3370,6 @@ static void do_osc(Terminal *term)
                                 }
 
                                 Shell_NotifyIconW(NIM_DELETE, &pnid); // Ignore errors from deletion
-
-                                wcsncpy_s(pnid.szTip, ARRAYSIZE(pnid.szTip), title_wc, _TRUNCATE);
 
                                 wcsncpy_s(pnid.szInfoTitle, ARRAYSIZE(pnid.szInfoTitle), title_wc, _TRUNCATE);
                                 wcsncpy_s(pnid.szInfo, ARRAYSIZE(pnid.szInfo), text_wc, _TRUNCATE);
