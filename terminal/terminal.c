@@ -3357,7 +3357,7 @@ static void do_osc(Terminal *term)
                                 NOTIFYICONDATAW pnid = {0};
                                 pnid.cbSize = sizeof(NOTIFYICONDATAW);
 
-                                pnid.uID = 200;
+                                pnid.uID = WM_USER + 200;
                                 if (!term->notif_hwnd) {
                                     term->notif_hwnd = CreateWindowExW(0, L"static", L"", 0, 0, 0, 0, 0, 0, 0, 0, 0);
                                 }
