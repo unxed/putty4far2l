@@ -1,5 +1,8 @@
 #!/bin/bash
 #
+# install compiler first:
+# sudo apt install mingw-w64
+#
 # i686 (32 bit) version is built by default.
 #
 # For x86_64 (64 bit) build, replace
