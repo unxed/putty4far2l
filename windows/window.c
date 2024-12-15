@@ -152,9 +152,9 @@ struct WinGuiSeatListNode wgslisthead = {
 
 static bool wintw_setup_draw_ctx(TermWin *);
 static void wintw_draw_text(TermWin *, int x, int y, wchar_t *text, int len,
-                            unsigned long attrs, int lattrs, truecolour tc);
+                            unsigned long attrs, int lattrs, truecolour tc, int custom);
 static void wintw_draw_cursor(TermWin *, int x, int y, wchar_t *text, int len,
-                              unsigned long attrs, int lattrs, truecolour tc);
+                              unsigned long attrs, int lattrs, truecolour tc, int custom);
 static void wintw_draw_trust_sigil(TermWin *, int x, int y);
 static int wintw_char_width(TermWin *, int uc);
 static void wintw_free_draw_ctx(TermWin *);
@@ -3328,6 +3328,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 }
             }
 
+            if ((ctrl & 504) == 504) { ctrl = 0; } // work around one more Wine issue (kb layout change affects?)
+
             char* kev = malloc(15); // keyboard event structure length
             memcpy(kev, &repeat, sizeof(repeat));
             memcpy(kev + 2, &vkc, sizeof(vkc));
@@ -3335,6 +3337,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             memcpy(kev + 6, &ctrl, sizeof(ctrl));
             memcpy(kev + 10, &uchar, sizeof(uchar));
             memcpy(kev + 14, &type, sizeof(type));
+
+            /*
+            // debug
+            printf("  type: %u\n", type);
+            printf("  vkc: %u (0x%04X)\n", vkc, vkc);
+            printf("  vsc: %u (0x%04X)\n", vsc, vsc);
+            printf("  ctrl: %lu (0x%08lX)\n", ctrl, ctrl);
+            printf("  repeat: %u\n", repeat);
+            printf("\n");
+            */
 
             // base64-encode kev
             base64_encodestate _state;
@@ -3671,7 +3683,7 @@ static void draw_horizontal_line_on_text(
  */
 static void do_text_internal(
     WinGuiSeat *wgs, int x, int y, wchar_t *text, int len,
-    unsigned long attr, int lattr, truecolour truecolour)
+    unsigned long attr, int lattr, truecolour truecolour, int custom)
 {
     COLORREF fg, bg, t;
     int nfg, nbg, nfont;
@@ -3707,8 +3719,11 @@ static void do_text_internal(
     x += wgs->offset_width;
     y += wgs->offset_height;
 
+    int ctype = wgs->cursor_type;
+    if (custom != -1) { ctype = custom; }
+
     if ((attr & TATTR_ACTCURS) &&
-        (wgs->cursor_type == CURSOR_BLOCK || wgs->term->big_cursor)) {
+        (ctype == CURSOR_BLOCK || wgs->term->big_cursor)) {
         truecolour.fg = truecolour.bg = optionalrgb_none;
         attr &= ~(ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS|ATTR_DIM);
         /* cursor fg and bg */
@@ -4050,7 +4065,7 @@ static void do_text_internal(
  */
 static void wintw_draw_text(
     TermWin *tw, int x, int y, wchar_t *text, int len,
-    unsigned long attr, int lattr, truecolour truecolour)
+    unsigned long attr, int lattr, truecolour truecolour, int custom)
 {
     WinGuiSeat *wgs = container_of(tw, WinGuiSeat, termwin);
     if (attr & TATTR_COMBINING) {
@@ -4061,13 +4076,13 @@ static void wintw_draw_text(
             len0 = 2;
         if (len-len0 >= 1 && IS_LOW_VARSEL(text[len0])) {
             attr &= ~TATTR_COMBINING;
-            do_text_internal(wgs, x, y, text, len0+1, attr, lattr, truecolour);
+            do_text_internal(wgs, x, y, text, len0+1, attr, lattr, truecolour, custom);
             text += len0+1;
             len -= len0+1;
             a = TATTR_COMBINING;
         } else if (len-len0 >= 2 && IS_HIGH_VARSEL(text[len0], text[len0+1])) {
             attr &= ~TATTR_COMBINING;
-            do_text_internal(wgs, x, y, text, len0+2, attr, lattr, truecolour);
+            do_text_internal(wgs, x, y, text, len0+2, attr, lattr, truecolour, custom);
             text += len0+2;
             len -= len0+2;
             a = TATTR_COMBINING;
@@ -4078,35 +4093,36 @@ static void wintw_draw_text(
         while (len--) {
             if (len >= 1 && IS_SURROGATE_PAIR(text[0], text[1])) {
                 do_text_internal(wgs, x, y, text, 2, attr | a, lattr,
-                                 truecolour);
+                                 truecolour, custom);
                 len--;
                 text++;
             } else
                 do_text_internal(wgs, x, y, text, 1, attr | a, lattr,
-                                 truecolour);
+                                 truecolour, custom);
 
             text++;
             a = TATTR_COMBINING;
         }
     } else
-        do_text_internal(wgs, x, y, text, len, attr, lattr, truecolour);
+        do_text_internal(wgs, x, y, text, len, attr, lattr, truecolour, custom);
 }
 
 static void wintw_draw_cursor(
     TermWin *tw, int x, int y, wchar_t *text, int len,
-    unsigned long attr, int lattr, truecolour truecolour)
+    unsigned long attr, int lattr, truecolour truecolour, int custom)
 {
     WinGuiSeat *wgs = container_of(tw, WinGuiSeat, termwin);
     int fnt_width;
     int char_width;
     int ctype = wgs->cursor_type;
+    if (custom != -1) { ctype = custom; }
 
     lattr &= LATTR_MODE;
 
     if ((attr & TATTR_ACTCURS) &&
         (ctype == CURSOR_BLOCK || wgs->term->big_cursor)) {
         if (*text != UCSWIDE) {
-            win_draw_text(tw, x, y, text, len, attr, lattr, truecolour);
+            win_draw_text(tw, x, y, text, len, attr, lattr, truecolour, custom);
             return;
         }
         ctype = CURSOR_VERTICAL_LINE;

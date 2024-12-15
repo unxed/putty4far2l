@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 static bool fuzz_setup_draw_ctx(TermWin *tw) { return true; }
 static void fuzz_draw_text(
     TermWin *tw, int x, int y, wchar_t *text, int len,
-    unsigned long attr, int lattr, truecolour tc)
+    unsigned long attr, int lattr, truecolour tc, int custom)
 {
     int i;
 
@@ -54,7 +54,7 @@ static void fuzz_draw_text(
 }
 static void fuzz_draw_cursor(
     TermWin *tw, int x, int y, wchar_t *text, int len,
-    unsigned long attr, int lattr, truecolour tc)
+    unsigned long attr, int lattr, truecolour tc, int custom)
 {
     int i;
 

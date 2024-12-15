@@ -1436,6 +1436,7 @@ static void power_on(Terminal *term, bool clear)
     term->far2l_ext = 0;
     term->prev_uchar = 0;
     term->notif_hwnd = 0;
+    term->cursor_custom = -1;
 
     term->alt_x = term->alt_y = 0;
     term->savecurs.x = term->savecurs.y = 0;
@@ -2075,6 +2076,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->far2l_ext = 0;
     term->is_apc = 0;
     //term->clip_allowed = -1;
+    term->cursor_custom = -1;
 
     term->win = win;
     term->ucsdata = ucsdata;
@@ -3255,6 +3257,24 @@ static void do_osc(Terminal *term)
 
                 // next from the end byte is command
                 switch (d_out[d_count-2]) {
+
+                    case 'h':;
+
+                        int height = d_out[d_count-3];
+
+                    	if (height < 30) {
+                            term->cursor_custom = CURSOR_UNDERLINE;
+                            term->big_cursor = false;
+                        } else {
+                            term->cursor_custom = CURSOR_BLOCK;
+                        }
+                        term->blink_cur = 1; // should always blink in far2l exts mode
+                        
+                        reply_size = 5;
+                        reply = malloc(reply_size);
+                        memcpy(reply, &zero, sizeof(DWORD));
+
+                        break;
 
                     case 'f':;
 
@@ -6639,13 +6659,13 @@ static void do_paint_draw(Terminal *term, termline *ldata, int x, int y,
         wchar_t tch[2];
         tch[0] = tch[1] = L' ';
         win_draw_text(term->win, x, y, tch, 2, term->basic_erase_char.attr,
-                      ldata->lattr, term->basic_erase_char.truecolour);
+                      ldata->lattr, term->basic_erase_char.truecolour, term->cursor_custom);
         win_draw_trust_sigil(term->win, x, y);
     } else {
-        win_draw_text(term->win, x, y, ch, ccount, attr, ldata->lattr, tc);
+        win_draw_text(term->win, x, y, ch, ccount, attr, ldata->lattr, tc, term->cursor_custom);
         if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
             win_draw_cursor(term->win, x, y, ch, ccount,
-                            attr, ldata->lattr, tc);
+                            attr, ldata->lattr, tc, term->cursor_custom);
     }
 }
 

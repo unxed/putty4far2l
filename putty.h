@@ -1641,14 +1641,14 @@ struct TermWinVtable {
     bool (*setup_draw_ctx)(TermWin *);
     /* Draw text in the window, during a painting operation */
     void (*draw_text)(TermWin *, int x, int y, wchar_t *text, int len,
-                      unsigned long attrs, int line_attrs, truecolour tc);
+                      unsigned long attrs, int line_attrs, truecolour tc, int custom);
     /* Draw the visible cursor. Expects you to have called do_text
      * first (because it might just draw an underline over a character
      * presumed to exist already), but also expects you to pass in all
      * the details of the character under the cursor (because it might
      * redraw it in different colours). */
     void (*draw_cursor)(TermWin *, int x, int y, wchar_t *text, int len,
-                        unsigned long attrs, int line_attrs, truecolour tc);
+                        unsigned long attrs, int line_attrs, truecolour tc, int custom);
     /* Draw the sigil indicating that a line of text has come from
      * PuTTY itself rather than the far end (defence against end-of-
      * authentication spoofing) */
@@ -1729,12 +1729,12 @@ static inline bool win_setup_draw_ctx(TermWin *win)
 { return win->vt->setup_draw_ctx(win); }
 static inline void win_draw_text(
     TermWin *win, int x, int y, wchar_t *text, int len,
-    unsigned long attrs, int line_attrs, truecolour tc)
-{ win->vt->draw_text(win, x, y, text, len, attrs, line_attrs, tc); }
+    unsigned long attrs, int line_attrs, truecolour tc, int custom)
+{ win->vt->draw_text(win, x, y, text, len, attrs, line_attrs, tc, custom); }
 static inline void win_draw_cursor(
     TermWin *win, int x, int y, wchar_t *text, int len,
-    unsigned long attrs, int line_attrs, truecolour tc)
-{ win->vt->draw_cursor(win, x, y, text, len, attrs, line_attrs, tc); }
+    unsigned long attrs, int line_attrs, truecolour tc, int custom)
+{ win->vt->draw_cursor(win, x, y, text, len, attrs, line_attrs, tc, custom); }
 static inline void win_draw_trust_sigil(TermWin *win, int x, int y)
 { win->vt->draw_trust_sigil(win, x, y); }
 static inline int win_char_width(TermWin *win, int uc)

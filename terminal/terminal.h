@@ -185,6 +185,7 @@ struct terminal_tag {
 /* far2l */
 #define OSC_ALLOCATE_BLOCK_SIZE 1048576
 
+    int cursor_custom;
     int osc_strlen;
     int osc_allocated_size;
     char* osc_string;
